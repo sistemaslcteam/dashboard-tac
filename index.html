@@ -1249,14 +1249,18 @@ async function loadFromGitHub(){
     document.getElementById('loadingScreen').classList.remove('hidden');
     document.getElementById('loadingScreen').querySelector('p').textContent='Cargando datos actualizados...';
 
-    // Leer con raw.githubusercontent.com — NO necesita token, funciona para todos
+    // Leer con raw.githubusercontent.com — timeout 6s, retorna null en 404
     async function fetchFile(path){
-      var url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+path+'?t='+Date.now();
-      var r=await fetch(url);
-      if(!r.ok) return null;
-      // raw devuelve el contenido binario del archivo b64gz — necesitamos leerlo como texto
-      var text=await r.text();
-      return text.trim();
+      try{
+        var url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+path+'?t='+Date.now();
+        var controller=new AbortController();
+        var timer=setTimeout(function(){controller.abort();},6000);
+        var r=await fetch(url,{signal:controller.signal});
+        clearTimeout(timer);
+        if(!r.ok) return null;   // 404 = archivo no existe aún
+        var text=await r.text();
+        return text.trim()||null;
+      }catch(e){ return null; }  // timeout o error de red
     }
 
     var [vB64,cB64,oB64]=await Promise.all([
@@ -1574,22 +1578,19 @@ async function init(){
     // Cargar config de GitHub
     loadGHConfig();
     // Intentar cargar ventas desde GitHub (fuente principal)
-    document.getElementById('loadingScreen').querySelector('p').textContent='Cargando datos desde servidor...';
-    var loaded=await loadFromGitHub();
+    document.getElementById('loadingScreen').querySelector('p').textContent='Verificando datos...';
+    var loaded=false;
+    try{
+      loaded=await loadFromGitHub();
+    }catch(e){ loaded=false; }
+
     if(!loaded){
-      // Sin GitHub: si hay ventas embebidas usarlas, si no mostrar pantalla de carga manual
-      if(B64_VENTAS){
-        ALL=await decompress(B64_VENTAS);
-        if(B64_OC) OC_DATA=await decompress(B64_OC);
-        REL=buildRelFromCat(ALL,CAT);
-        populateFilters();applyFilters();renderRelaciones();renderOC();
-      } else {
-        // Sin datos — pedir que configuren GitHub o carguen archivo
-        document.getElementById('loadingScreen').classList.add('hidden');
-        document.getElementById('noDataBanner').style.display='flex';
-      }
+      // GitHub sin datos o sin conexión — mostrar banner para cargar archivo
+      document.getElementById('loadingScreen').classList.add('hidden');
+      document.getElementById('noDataBanner').style.display='flex';
+    } else {
+      document.getElementById('loadingScreen').classList.add('hidden');
     }
-    document.getElementById('loadingScreen').classList.add('hidden');
   }catch(err){
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('loadingScreen').innerHTML='<p style="color:red;padding:20px;text-align:center">Error: '+err+'</p>';
