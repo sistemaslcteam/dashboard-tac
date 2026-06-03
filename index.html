@@ -286,6 +286,7 @@ td:first-child .tc{padding-left:12px;}
   <button class="tab on" onclick="showTab('dashboard',this)">📊 Dashboard</button>
   <button class="tab" onclick="showTab('reporte',this)">📄 Reporte por Cliente</button>
   <button class="tab" onclick="showTab('relaciones',this)">👥 Vendedor–Cliente</button>
+  <button class="tab" onclick="showTab('vendedores',this)">🏆 Dashboard Vendedores</button>
   <button class="tab" onclick="showTab('ordenes',this)">📋 Órdenes de Compra</button>
 </div>
 
@@ -396,6 +397,45 @@ td:first-child .tc{padding-left:12px;}
   <div id="rpt-content"><div class="em" style="padding:60px">Selecciona un cliente para ver su reporte</div></div>
 </div>
 </div>
+
+
+<!-- ═══════════ PAGE: VENDEDORES ═══════════ -->
+<div class="page" id="page-vendedores">
+<div class="main">
+
+  <!-- FILTROS -->
+  <div class="fbar" style="margin-bottom:14px;">
+    <span class="fbar-label">Filtros</span>
+    <select class="fsel" id="vd-year" onchange="renderVendedores()"><option value="">Todos los años</option></select>
+    <select class="fsel" id="vd-mes"  onchange="renderVendedores()"><option value="">Todos los meses</option></select>
+    <span class="fsep"></span>
+    <span class="finfo" id="vd-info"></span>
+  </div>
+
+  <!-- RANKING CARDS -->
+  <div class="slabel">Ranking de Vendedores</div>
+  <div id="vd-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;"></div>
+
+  <!-- COMPARATIVO VENTAS -->
+  <div class="slabel">Comparativo</div>
+  <div class="cgrid3" style="margin-bottom:14px;">
+    <div class="cc">
+      <div class="cch"><div><div class="cct">Venta Total por Vendedor</div><div class="ccs">Comparativo USD</div></div></div>
+      <canvas id="vd-barVenta" style="max-height:200px"></canvas>
+    </div>
+    <div class="cc">
+      <div class="cch"><div><div class="cct">Utilidad Operativa</div><div class="ccs">Comparativo USD</div></div></div>
+      <canvas id="vd-barUtil" style="max-height:200px"></canvas>
+    </div>
+  </div>
+
+  <!-- DETALLE POR VENDEDOR -->
+  <div class="slabel">Detalle por Vendedor</div>
+  <div id="vd-detail"></div>
+
+</div>
+</div>
+<!-- /PAGE VENDEDORES -->
 
 <!-- ═══════════ PAGE: RELACIONES ═══════════ -->
 <div class="page" id="page-relaciones">
@@ -1275,6 +1315,252 @@ async function syncToGitHub(tipo, data, filename){
     showToast('⚠️ Configura ⚙️ Sincronización con tu token GitHub para guardar.');
     console.warn('GitHub sync:',err.message);
   }
+}
+
+
+// ══════════════════════════════════════════
+// DASHBOARD VENDEDORES
+// ══════════════════════════════════════════
+function getVendorData(yr, mes){
+  return ALL.filter(function(r){
+    if(r[F.VENDEDOR]==='SIN ASIGNAR') return false;
+    if(yr  && r[F.AÑO]!==yr)  return false;
+    if(mes && r[F.MES]!==mes)  return false;
+    return true;
+  });
+}
+
+function renderVendedores(){
+  var yr  = document.getElementById('vd-year').value;
+  var mes = document.getElementById('vd-mes').value;
+  var data = getVendorData(yr, mes);
+
+  // Populate filters
+  var fyEl=document.getElementById('vd-year'), fyCur=fyEl.value;
+  fyEl.innerHTML='<option value="">Todos los años</option>';
+  var years=[...new Set(ALL.map(function(r){return r[F.AÑO];}))].filter(Boolean).sort();
+  years.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;fyEl.appendChild(o);});
+  if(fyCur) fyEl.value=fyCur;
+
+  var fmEl=document.getElementById('vd-mes'), fmCur=fmEl.value;
+  fmEl.innerHTML='<option value="">Todos los meses</option>';
+  var meses=[...new Set(ALL.map(function(r){return r[F.MES];}))].filter(Boolean).sort(function(a,b){return MONTHS.indexOf(a)-MONTHS.indexOf(b);});
+  meses.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;fmEl.appendChild(o);});
+  if(fmCur) fmEl.value=fmCur;
+
+  // Aggregate by vendor
+  var vendors={};
+  data.forEach(function(r){
+    var v=r[F.VENDEDOR];
+    if(!vendors[v]) vendors[v]={venta:0,util:0,cant:0,clientes:new Set(),skus:new Set(),trans:0,
+      by_mes:{},by_cli:{},by_fam:{},by_clave:{}};
+    var d=vendors[v];
+    d.venta+=r[F.VENTA]; d.util+=r[F.UTIL]; d.cant+=r[F.CANT]; d.trans++;
+    d.clientes.add(r[F.CLIENTE]); d.skus.add(r[F.CLAVE]);
+    d.by_mes[r[F.MES]]=(d.by_mes[r[F.MES]]||0)+r[F.VENTA];
+    d.by_cli[r[F.CLIENTE]]=(d.by_cli[r[F.CLIENTE]]||0)+r[F.VENTA];
+    d.by_fam[r[F.FAMILIA]]=(d.by_fam[r[F.FAMILIA]]||0)+r[F.VENTA];
+    d.by_clave[r[F.CLAVE]]=(d.by_clave[r[F.CLAVE]]||0)+r[F.VENTA];
+  });
+
+  var vList=Object.entries(vendors).sort(function(a,b){return b[1].venta-a[1].venta;});
+  var totalVenta=vList.reduce(function(s,e){return s+e[1].venta;},0);
+
+  document.getElementById('vd-info').textContent=data.length.toLocaleString()+' registros · '+fmtM(totalVenta)+' total';
+
+  // ── RANKING CARDS ──
+  var RANK_COLORS=['#f59e0b','#94a3b8','#b45309']; // oro, plata, bronce
+  var RANK_ICONS=['🥇','🥈','🥉'];
+  var cards=vList.map(function(e,i){
+    var name=e[0], d=e[1];
+    var pct=totalVenta>0?((d.venta/totalVenta)*100).toFixed(1):0;
+    var margen=d.venta>0?((d.util/d.venta)*100).toFixed(1):0;
+    var color=COLORS[i%COLORS.length];
+    var topCli=Object.entries(d.by_cli).sort(function(a,b){return b[1]-a[1];}).slice(0,3);
+    var topFam=Object.entries(d.by_fam).sort(function(a,b){return b[1]-a[1];}).slice(0,3);
+    return '<div class="cc" style="border-top:3px solid '+color+';position:relative;">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'
+      +'<div style="font-size:28px;">'+(RANK_ICONS[i]||'🏷')+'</div>'
+      +'<div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--nv)">'+name+'</div>'
+      +'<div style="font-size:10px;color:var(--tx2)">Posición #'+(i+1)+' · '+pct+'% del total</div></div>'
+      +'<div style="text-align:right"><div style="font-size:1.3rem;font-weight:700;color:'+color+'">'+fmtM(d.venta)+'</div>'
+      +'<div style="font-size:10px;color:var(--tx2)">en ventas</div></div>'
+      +'</div>'
+      // Progress bar
+      +'<div style="background:var(--gy2);border-radius:99px;height:6px;margin-bottom:14px;">'
+      +'<div style="width:'+pct+'%;background:'+color+';height:6px;border-radius:99px;transition:.5s;"></div></div>'
+      // KPI row
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">'
+      +kpiMini('💰','Utilidad',fmtM(d.util))
+      +kpiMini('📊','Margen',margen+'%')
+      +kpiMini('👥','Clientes',fmtN(d.clientes.size))
+      +kpiMini('🔁','Trans.',fmtN(d.trans))
+      +'</div>'
+      // Top clientes
+      +'<div style="margin-bottom:10px;">'
+      +'<div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Top Clientes</div>'
+      +topCli.map(function(c,ci){
+        var cpct=d.venta>0?((c[1]/d.venta)*100).toFixed(0):0;
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'
+          +'<div style="font-size:11px;flex:1;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+c[0].substring(0,30)+'</div>'
+          +'<div style="font-size:11px;font-weight:600;color:var(--gd);white-space:nowrap;">'+fmtM(c[1])+'</div>'
+          +'<div style="width:50px;background:var(--gy2);border-radius:99px;height:4px;">'
+          +'<div style="width:'+cpct+'%;background:'+color+';height:4px;border-radius:99px;"></div></div>'
+          +'</div>';
+      }).join('')
+      +'</div>'
+      // Top familias
+      +'<div>'
+      +'<div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Top Familias SKU</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +topFam.map(function(f){
+        return '<span style="background:var(--gy);border:1px solid var(--gy2);border-radius:5px;padding:2px 8px;font-size:10px;font-weight:600;color:var(--nv)">'+f[0]+' '+fmtM(f[1])+'</span>';
+      }).join('')
+      +'</div></div>'
+      +'</div>';
+  });
+  document.getElementById('vd-cards').innerHTML=cards.join('');
+
+  // ── COMPARATIVO CHARTS ──
+  drawVdBarVenta(vList);
+  drawVdBarUtil(vList);
+
+  // ── DETALLE VENDEDOR ──
+  renderVdDetail(vList, yr, mes);
+}
+
+function kpiMini(ico, lbl, val){
+  return '<div style="background:var(--gy);border-radius:7px;padding:8px;text-align:center;">'
+    +'<div style="font-size:14px;">'+ico+'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--nv);margin:2px 0;">'+val+'</div>'
+    +'<div style="font-size:9px;color:var(--tx2);text-transform:uppercase;">'+lbl+'</div>'
+    +'</div>';
+}
+
+function drawVdBarVenta(vList){
+  destroyC('vd-barVenta');
+  var ctx=document.getElementById('vd-barVenta').getContext('2d');
+  var o=cO(); o.plugins.legend={display:false};
+  o.indexAxis='y';
+  charts['vd-barVenta']=new Chart(ctx,{type:'bar',
+    data:{labels:vList.map(function(e){return e[0];}),
+      datasets:[{data:vList.map(function(e){return e[1].venta;}),
+        backgroundColor:vList.map(function(_,i){return COLORS[i%COLORS.length]+'cc';}),
+        borderColor:vList.map(function(_,i){return COLORS[i%COLORS.length];}),
+        borderWidth:1,borderRadius:4}]},options:o});
+}
+
+function drawVdBarUtil(vList){
+  destroyC('vd-barUtil');
+  var ctx=document.getElementById('vd-barUtil').getContext('2d');
+  var o=cO(); o.plugins.legend={display:false};
+  o.indexAxis='y';
+  charts['vd-barUtil']=new Chart(ctx,{type:'bar',
+    data:{labels:vList.map(function(e){return e[0];}),
+      datasets:[{data:vList.map(function(e){return e[1].util;}),
+        backgroundColor:vList.map(function(_,i){return COLORS[i%COLORS.length]+'cc';}),
+        borderColor:vList.map(function(_,i){return COLORS[i%COLORS.length];}),
+        borderWidth:1,borderRadius:4}]},options:o});
+}
+
+function renderVdDetail(vList, yr, mes){
+  var detail=vList.map(function(e,i){
+    var name=e[0], d=e[1];
+    var color=COLORS[i%COLORS.length];
+    var margen=d.venta>0?((d.util/d.venta)*100).toFixed(1):0;
+
+    // Evolucion mensual
+    var mesData=MONTHS.map(function(m){return d.by_mes[m]||0;});
+
+    // Top productos
+    var topClave=Object.entries(d.by_clave).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+
+    // Top clientes tabla
+    var topCli=Object.entries(d.by_cli).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+
+    var chartId='vd-line-'+i;
+    var barId='vd-prod-'+i;
+
+    setTimeout(function(){
+      // Línea mensual
+      destroyC(chartId);
+      var ctx=document.getElementById(chartId);
+      if(ctx){
+        var o=cO(); o.plugins.legend={display:false};
+        charts[chartId]=new Chart(ctx.getContext('2d'),{type:'line',
+          data:{labels:MONTHS.map(function(m){return m.substring(0,3);}),
+            datasets:[{data:mesData,borderColor:color,backgroundColor:color+'18',
+              tension:.4,fill:true,pointRadius:3,pointHoverRadius:5,borderWidth:2}]},options:o});
+      }
+      // Barras productos
+      destroyC(barId);
+      var ctx2=document.getElementById(barId);
+      if(ctx2){
+        var o2=cO(); o2.plugins.legend={display:false}; o2.indexAxis='y';
+        charts[barId]=new Chart(ctx2.getContext('2d'),{type:'bar',
+          data:{labels:topClave.map(function(c){return c[0].substring(0,22);}),
+            datasets:[{data:topClave.map(function(c){return c[1];}),
+              backgroundColor:color+'cc',borderColor:color,borderWidth:1,borderRadius:3}]},options:o2});
+      }
+    },50);
+
+    return '<div class="cc" style="margin-bottom:12px;border-left:4px solid '+color+';">'
+      // Header vendedor
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'
+      +'<div style="font-size:14px;font-weight:700;color:var(--nv)">'+name+'</div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+      +['💰 Venta: '+fmtM(d.venta),'📈 Utilidad: '+fmtM(d.util)+'  ('+margen+'%)','📦 Unidades: '+fmtN(d.cant),'👥 Clientes: '+d.clientes.size,'🔁 Transacciones: '+d.trans]
+        .map(function(t){return '<span style="background:var(--gy);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:var(--nv)">'+t+'</span>';}).join('')
+      +'</div></div>'
+      // Charts + tabla
+      +'<div style="display:grid;grid-template-columns:1.5fr 1.5fr 1fr;gap:14px;">'
+      // Línea mensual
+      +'<div><div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;margin-bottom:6px;">Evolución Mensual</div>'
+      +'<canvas id="'+chartId+'" style="max-height:180px"></canvas></div>'
+      // Top productos
+      +'<div><div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;margin-bottom:6px;">Top Productos (SKU)</div>'
+      +'<canvas id="'+barId+'" style="max-height:180px"></canvas></div>'
+      // Top clientes tabla
+      +'<div><div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;margin-bottom:6px;">Top Clientes</div>'
+      +'<div style="overflow-y:auto;max-height:185px;">'
+      +topCli.map(function(c,ci){
+        var cpct=d.venta>0?Math.round(c[1]/d.venta*100):0;
+        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--gy2);">'
+          +'<div style="font-size:10px;font-weight:700;color:'+color+';width:16px;">'+(ci+1)+'</div>'
+          +'<div style="flex:1;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+c[0].substring(0,24)+'</div>'
+          +'<div style="font-size:10px;font-weight:600;color:var(--gd);white-space:nowrap;">'+fmtM(c[1])+'</div>'
+          +'</div>';
+      }).join('')
+      +'</div></div>'
+      +'</div>'
+      // Botón exportar
+      +'<div style="margin-top:12px;text-align:right;">'
+      +'<button class="btn btn-out" onclick="exportVendedorCSV(''+name+'',''+yr+'',''+mes+'')" style="font-size:10px;">⬇ Exportar CSV</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+
+  document.getElementById('vd-detail').innerHTML=detail;
+}
+
+function exportVendedorCSV(vend, yr, mes){
+  var data=ALL.filter(function(r){
+    if(r[F.VENDEDOR]!==vend) return false;
+    if(yr&&r[F.AÑO]!==yr) return false;
+    if(mes&&r[F.MES]!==mes) return false;
+    return true;
+  });
+  var headers=['Folio','Fecha','Cliente','SKU','Familia','Cantidad','Venta USD','Util.Op.','Markup%'];
+  var rows=data.map(function(r){
+    return [r[F.FOLIO],r[F.FECHA],r[F.CLIENTE],r[F.CLAVE],r[F.FAMILIA],r[F.CANT],r[F.VENTA],r[F.UTIL],r[F.MARKUP]].join(',');
+  });
+  var csv=headers.join(',')+'
+'+rows.join('
+');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+  a.download='vendedor_'+vend.replace(/\s/g,'_')+'.csv';
+  a.click();
 }
 
 function showToast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3500);}
