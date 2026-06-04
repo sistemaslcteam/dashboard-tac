@@ -1087,7 +1087,7 @@ document.addEventListener('DOMContentLoaded',function(){
       REL=buildRelFromCat(ALL,CAT);
       OC_DATA=rowsToOC(ALL.map(function(r){return{Folio:r[F.FOLIO],OC:r[F.OC],Cliente:r[F.CLIENTE],Vendedor:r[F.VENDEDOR],Fecha:r[F.FECHA],Clave:r[F.CLAVE],Cantidad:r[F.CANT],Venta:r[F.VENTA]};}));
       OC_DATA=rowsToOC(rows);
-      populateFilters();applyFilters();renderRelaciones();renderOC();
+      populateFilters();applyFilters();renderRelaciones();renderOC();renderVendedores();
       document.getElementById('hdr-sub').textContent='Datos: '+file.name+' · '+new Date().toLocaleTimeString('es-MX');
       res.className='ur ok';res.textContent='✓ '+ALL.length.toLocaleString()+' registros cargados.';
       showToast('✓ Base de ventas actualizada: '+ALL.length.toLocaleString()+' registros');
@@ -1275,7 +1275,7 @@ async function loadFromGitHub(){
     if(oData&&Array.isArray(oData)){OC_DATA=oData;}
     if(changed){
       REL=buildRelFromCat(ALL,CAT);
-      populateFilters();applyFilters();renderRelaciones();renderOC();
+      populateFilters();applyFilters();renderRelaciones();renderOC();renderVendedores();
       var ts=new Date().toLocaleTimeString('es-MX');
       document.getElementById('hdr-sub').textContent='✅ Datos actualizados desde GitHub · '+ts;
       showToast('✅ Datos actualizados desde GitHub');
@@ -1337,11 +1337,7 @@ function getVendorData(yr, mes){
 }
 
 function renderVendedores(){
-  var yr  = document.getElementById('vd-year').value;
-  var mes = document.getElementById('vd-mes').value;
-  var data = getVendorData(yr, mes);
-
-  // Populate filters
+  // Populate filters first
   var fyEl=document.getElementById('vd-year'), fyCur=fyEl.value;
   fyEl.innerHTML='<option value="">Todos los años</option>';
   var years=[...new Set(ALL.map(function(r){return r[F.AÑO];}))].filter(Boolean).sort();
@@ -1353,6 +1349,10 @@ function renderVendedores(){
   var meses=[...new Set(ALL.map(function(r){return r[F.MES];}))].filter(Boolean).sort(function(a,b){return MONTHS.indexOf(a)-MONTHS.indexOf(b);});
   meses.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;fmEl.appendChild(o);});
   if(fmCur) fmEl.value=fmCur;
+
+  var yr  = document.getElementById('vd-year').value;
+  var mes = document.getElementById('vd-mes').value;
+  var data = getVendorData(yr, mes);
 
   // Aggregate by vendor
   var vendors={};
