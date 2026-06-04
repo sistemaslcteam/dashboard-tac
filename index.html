@@ -1540,8 +1540,7 @@ function renderVdDetail(vList, yr, mes){
       +'</div></div>'
       +'</div>'
       // Botón exportar
-      +'<div style="margin-top:12px;text-align:right;">'
-      +'<button class="btn btn-out" onclick="exportVendedorCSV(''+name+'',''+yr+'',''+mes+'')" style="font-size:10px;">⬇ Exportar CSV</button>'
+      +'<div style="margin-top:12px;text-align:right;"><button class="btn btn-out" style="font-size:10px;" data-vend="'+encodeURIComponent(name)+'" data-yr="'+encodeURIComponent(yr)+'" data-mes="'+encodeURIComponent(mes)+'" onclick="exportVendedorCSV(decodeURIComponent(this.dataset.vend),decodeURIComponent(this.dataset.yr),decodeURIComponent(this.dataset.mes))">⬇ Exportar CSV</button></div>'
       +'</div>'
       +'</div>';
   }).join('');
