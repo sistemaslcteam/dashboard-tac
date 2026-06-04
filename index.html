@@ -1157,9 +1157,9 @@ document.addEventListener('drop',function(e){
 // ══════════════════════════════════════════════════════
 var GH_TOKEN='', GH_REPO='', GH_BRANCH='main';
 var GH_FILES={
-  ventas:'data/ventas.b64gz',
-  cat:'data/cat.b64gz',
-  oc:'data/oc.b64gz'
+  ventas:'data/ventas.json',
+  cat:'data/cat.json',
+  oc:'data/oc.json'
 };
 
 // Repo público hardcodeado — todas las PCs leen datos de aquí automáticamente
@@ -1249,30 +1249,30 @@ async function loadFromGitHub(){
     document.getElementById('loadingScreen').classList.remove('hidden');
     document.getElementById('loadingScreen').querySelector('p').textContent='Cargando datos actualizados...';
 
-    // Leer con raw.githubusercontent.com — timeout 6s, retorna null en 404
-    async function fetchFile(path){
+    // Leer JSON directamente desde raw.githubusercontent.com
+    async function fetchJSON(path){
       try{
         var url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+path+'?t='+Date.now();
         var controller=new AbortController();
-        var timer=setTimeout(function(){controller.abort();},6000);
+        var timer=setTimeout(function(){controller.abort();},15000);
         var r=await fetch(url,{signal:controller.signal});
         clearTimeout(timer);
-        if(!r.ok) return null;   // 404 = archivo no existe aún
-        var text=await r.text();
-        return text.trim()||null;
-      }catch(e){ return null; }  // timeout o error de red
+        if(!r.ok) return null;
+        return await r.json();
+      }catch(e){ return null; }
     }
 
-    var [vB64,cB64,oB64]=await Promise.all([
-      fetchFile(GH_FILES.ventas),
-      fetchFile(GH_FILES.cat),
-      fetchFile(GH_FILES.oc)
+    document.getElementById('loadingScreen').querySelector('p').textContent='Descargando datos...';
+    var [vData,cData,oData]=await Promise.all([
+      fetchJSON(GH_FILES.ventas),
+      fetchJSON(GH_FILES.cat),
+      fetchJSON(GH_FILES.oc)
     ]);
 
     var changed=false;
-    if(vB64){ALL=await decompress(vB64);changed=true;}
-    if(cB64){CAT=await decompress(cB64);CAT_MAP=buildCatMap(CAT);}
-    if(oB64){OC_DATA=await decompress(oB64);}
+    if(vData&&Array.isArray(vData)){ALL=vData;changed=true;}
+    if(cData&&Array.isArray(cData)){CAT=cData;CAT_MAP=buildCatMap(CAT);}
+    if(oData&&Array.isArray(oData)){OC_DATA=oData;}
     if(changed){
       REL=buildRelFromCat(ALL,CAT);
       populateFilters();applyFilters();renderRelaciones();renderOC();
@@ -1310,7 +1310,9 @@ async function syncToGitHub(tipo, data, filename){
   if(!GH_TOKEN||!GH_REPO)return;
   try{
     showToast('☁️ Guardando en GitHub...');
-    var b64=await compressToB64(data);
+    // Encode JSON as base64 for GitHub API (GitHub API requires base64 content)
+    var jsonStr=JSON.stringify(data,null,0);
+    var b64=btoa(unescape(encodeURIComponent(jsonStr)));
     var path=tipo==='ventas'?GH_FILES.ventas:tipo==='cat'?GH_FILES.cat:GH_FILES.oc;
     await pushToGitHub(path, b64, 'Update '+tipo+' - '+new Date().toISOString().substring(0,10)+' - '+filename);
     showToast('✅ Datos guardados. Todas las PCs verán la actualización al recargar.');
