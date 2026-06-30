@@ -156,6 +156,25 @@ td:first-child .tc{padding-left:12px;}
 
 /* PRINT */
 @media print{.hdr,.tabs,.pb,.fbar,.ha,.active-chips,.btn,.print-btn{display:none!important;} .page{display:block!important;} body{background:#fff;}}
+
+/* MULTI-SELECT DROPDOWN */
+.msel{position:relative;display:inline-block;}
+.msel-btn{padding:5px 10px;border-radius:7px;border:1.5px solid var(--gy2);background:#fff;color:var(--tx);font-size:11px;font-weight:500;cursor:pointer;outline:none;font-family:'Inter',sans-serif;min-width:140px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:6px;white-space:nowrap;}
+.msel-btn:hover{border-color:var(--nv);}
+.msel-btn.active{border-color:var(--nv);background:#f0f5ff;}
+.msel-btn .car{font-size:9px;color:var(--tx2);transition:.15s;}
+.msel.open .msel-btn .car{transform:rotate(180deg);}
+.msel-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1.5px solid var(--gy2);border-radius:9px;box-shadow:0 8px 24px rgba(13,42,74,.15);z-index:150;min-width:220px;max-width:300px;padding:8px;}
+.msel.open .msel-panel{display:block;}
+.msel-search{width:100%;padding:5px 8px;border:1px solid var(--gy2);border-radius:6px;font-size:11px;margin-bottom:6px;outline:none;font-family:'Inter',sans-serif;}
+.msel-actions{display:flex;gap:6px;margin-bottom:6px;}
+.msel-actions button{flex:1;padding:3px 6px;font-size:10px;border:1px solid var(--gy2);background:var(--gy);border-radius:5px;cursor:pointer;color:var(--tx2);font-family:'Inter',sans-serif;}
+.msel-actions button:hover{background:var(--gy2);}
+.msel-list{max-height:220px;overflow-y:auto;}
+.msel-item{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:11px;}
+.msel-item:hover{background:var(--gy);}
+.msel-item input{cursor:pointer;accent-color:var(--nv);}
+.msel-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -294,9 +313,15 @@ td:first-child .tc{padding-left:12px;}
   <!-- FILTERS -->
   <div class="fbar">
     <span class="fbar-label">Filtros</span>
-    <select class="fsel" id="f-year" onchange="applyFilters()"><option value="">Todos los años</option></select>
-    <select class="fsel" id="f-mes"  onchange="applyFilters()"><option value="">Todos los meses</option></select>
-    <select class="fsel" id="f-vend" onchange="applyFilters()"><option value="">Todos los vendedores</option></select>
+    <div class="msel" id="msel-year"><button class="msel-btn" onclick="toggleMsel('msel-year')"><span id="msel-year-label">Todos los años</span><span class="car">▾</span></button>
+      <div class="msel-panel"><div class="msel-actions"><button onclick="mselAll('year')">Todos</button><button onclick="mselNone('year')">Ninguno</button></div><div class="msel-list" id="msel-year-list"></div></div>
+    </div>
+    <div class="msel" id="msel-mes"><button class="msel-btn" onclick="toggleMsel('msel-mes')"><span id="msel-mes-label">Todos los meses</span><span class="car">▾</span></button>
+      <div class="msel-panel"><div class="msel-actions"><button onclick="mselAll('mes')">Todos</button><button onclick="mselNone('mes')">Ninguno</button></div><div class="msel-list" id="msel-mes-list"></div></div>
+    </div>
+    <div class="msel" id="msel-vend"><button class="msel-btn" onclick="toggleMsel('msel-vend')"><span id="msel-vend-label">Todos los vendedores</span><span class="car">▾</span></button>
+      <div class="msel-panel"><div class="msel-actions"><button onclick="mselAll('vend')">Todos</button><button onclick="mselNone('vend')">Ninguno</button></div><div class="msel-list" id="msel-vend-list"></div></div>
+    </div>
     <select class="fsel" id="f-cli"  onchange="applyFilters()"><option value="">Todos los clientes</option></select>
     <select class="fsel" id="f-fam"  onchange="applyFilters()"><option value="">Todas las familias</option></select>
     <span class="fsep"></span>
@@ -388,8 +413,12 @@ td:first-child .tc{padding-left:12px;}
   <!-- FILTROS -->
   <div class="fbar" style="margin-bottom:14px;">
     <span class="fbar-label">Filtros</span>
-    <select class="fsel" id="vd-year" onchange="renderVendedores()"><option value="">Todos los años</option></select>
-    <select class="fsel" id="vd-mes"  onchange="renderVendedores()"><option value="">Todos los meses</option></select>
+    <div class="msel" id="msel-vdyear"><button class="msel-btn" onclick="toggleMsel('msel-vdyear')"><span id="msel-vdyear-label">Todos los años</span><span class="car">▾</span></button>
+      <div class="msel-panel"><div class="msel-actions"><button onclick="mselAll('vdyear')">Todos</button><button onclick="mselNone('vdyear')">Ninguno</button></div><div class="msel-list" id="msel-vdyear-list"></div></div>
+    </div>
+    <div class="msel" id="msel-vdmes"><button class="msel-btn" onclick="toggleMsel('msel-vdmes')"><span id="msel-vdmes-label">Todos los meses</span><span class="car">▾</span></button>
+      <div class="msel-panel"><div class="msel-actions"><button onclick="mselAll('vdmes')">Todos</button><button onclick="mselNone('vdmes')">Ninguno</button></div><div class="msel-list" id="msel-vdmes-list"></div></div>
+    </div>
     <span class="fsep"></span>
     <span class="finfo" id="vd-info"></span>
   </div>
@@ -518,14 +547,12 @@ document.addEventListener('click',function(e){
 // ── ACTIVE FILTER CHIPS ──
 function renderActiveChips(){
   var chips=[];
-  var yr=document.getElementById('f-year').value;
-  var mes=document.getElementById('f-mes').value;
-  var ven=document.getElementById('f-vend').value;
+  var yrs=mselState.year, mess=mselState.mes, vens=mselState.vend;
   var cli=document.getElementById('f-cli').value;
   var fam=document.getElementById('f-fam').value;
-  if(yr) chips.push({label:'Año: '+yr,clear:function(){document.getElementById('f-year').value='';applyFilters();}});
-  if(mes) chips.push({label:'Mes: '+mes,clear:function(){document.getElementById('f-mes').value='';applyFilters();}});
-  if(ven) chips.push({label:'Vendedor: '+ven,clear:function(){document.getElementById('f-vend').value='';applyFilters();}});
+  if(yrs.length) chips.push({label:'Año: '+(yrs.length>2?yrs.length+' sel.':yrs.join(', ')),clear:function(){mselState.year=[];buildMselList('year',mselOptions.year);applyFilters();}});
+  if(mess.length) chips.push({label:'Mes: '+(mess.length>2?mess.length+' sel.':mess.join(', ')),clear:function(){mselState.mes=[];buildMselList('mes',mselOptions.mes);applyFilters();}});
+  if(vens.length) chips.push({label:'Vendedor: '+(vens.length>2?vens.length+' sel.':vens.join(', ')),clear:function(){mselState.vend=[];buildMselList('vend',mselOptions.vend);applyFilters();}});
   if(cli) chips.push({label:'Cliente: '+cli.substring(0,20),clear:function(){document.getElementById('f-cli').value='';applyFilters();}});
   if(fam) chips.push({label:'Familia: '+fam,clear:function(){document.getElementById('f-fam').value='';applyFilters();}});
   if(clickFilters.mes) chips.push({label:'📅 '+clickFilters.mes,clear:function(){clickFilters.mes=null;applyFilters();}});
@@ -570,6 +597,68 @@ function buildRelFromCat(ventas,cat){
   return Object.values(map).sort(function(a,b){return b[2]-a[2];});
 }
 
+
+// ══════════════════════════════════════════
+// MULTI-SELECT DROPDOWN COMPONENT
+// ══════════════════════════════════════════
+var mselState={year:[],mes:[],vend:[],vdyear:[],vdmes:[]};   // arrays of selected values (empty = todos)
+var mselOptions={year:[],mes:[],vend:[],vdyear:[],vdmes:[]}; // available options per filter
+
+function toggleMsel(id){
+  var el=document.getElementById(id);
+  var wasOpen=el.classList.contains('open');
+  document.querySelectorAll('.msel').forEach(function(m){m.classList.remove('open');});
+  if(!wasOpen) el.classList.add('open');
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.msel')){
+    document.querySelectorAll('.msel').forEach(function(m){m.classList.remove('open');});
+  }
+});
+
+function buildMselList(key, options){
+  mselOptions[key]=options;
+  var container=document.getElementById('msel-'+key+'-list');
+  container.innerHTML=options.map(function(opt){
+    var checked=mselState[key].indexOf(opt)>=0?'checked':'';
+    return '<label class="msel-item"><input type="checkbox" value="'+opt.replace(/"/g,'&quot;')+'" '+checked+' onchange="mselToggle(\''+key+'\',this.value,this.checked)"><span>'+opt+'</span></label>';
+  }).join('');
+  updateMselLabel(key);
+}
+
+function mselRefreshFn(key){
+  // vdyear/vdmes belong to the Vendedores dashboard; everything else to the main filters
+  return (key==='vdyear'||key==='vdmes') ? renderVendedores : applyFilters;
+}
+
+function mselToggle(key,val,checked){
+  if(checked){ if(mselState[key].indexOf(val)<0) mselState[key].push(val); }
+  else{ mselState[key]=mselState[key].filter(function(v){return v!==val;}); }
+  updateMselLabel(key);
+  mselRefreshFn(key)();
+}
+
+function mselAll(key){
+  mselState[key]=mselOptions[key].slice();
+  buildMselList(key, mselOptions[key]);
+  mselRefreshFn(key)();
+}
+function mselNone(key){
+  mselState[key]=[];
+  buildMselList(key, mselOptions[key]);
+  mselRefreshFn(key)();
+}
+
+function updateMselLabel(key){
+  var lbl=document.getElementById('msel-'+key+'-label');
+  var btn=document.querySelector('#msel-'+key+' .msel-btn');
+  var n=mselState[key].length;
+  var defaultLabels={year:'Todos los años',mes:'Todos los meses',vend:'Todos los vendedores',vdyear:'Todos los años',vdmes:'Todos los meses'};
+  if(n===0){ lbl.textContent=defaultLabels[key]; btn.classList.remove('active'); }
+  else if(n===1){ lbl.textContent=mselState[key][0]; btn.classList.add('active'); }
+  else{ lbl.textContent=n+' seleccionados'; btn.classList.add('active'); }
+}
+
 // ── FILTERS ──
 function populateFilters(){
   function fill(id,kFn,sortFn){
@@ -580,15 +669,16 @@ function populateFilters(){
     vals.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);});
     if(cur&&vals.indexOf(cur)>=0)el.value=cur;
   }
-  fill('f-year',function(r){return r[F.AÑO];},function(a,b){return a-b;});
-  fill('f-mes',function(r){return r[F.MES];},function(a,b){return MONTHS.indexOf(a)-MONTHS.indexOf(b);});
-  // Vendedor: solo los del catálogo, en MAYÚSCULAS
-  var fvEl=document.getElementById('f-vend'),fvCur=fvEl.value;
-  fvEl.innerHTML='<option value="">Todos los vendedores</option>';
+  // Año (multi-select)
+  var years=[...new Set(ALL.map(function(r){return r[F.AÑO];}))].filter(Boolean).sort(function(a,b){return a-b;});
+  buildMselList('year', years);
+  // Mes (multi-select)
+  var mesesAll=[...new Set(ALL.map(function(r){return r[F.MES];}))].filter(Boolean).sort(function(a,b){return MONTHS.indexOf(a)-MONTHS.indexOf(b);});
+  buildMselList('mes', mesesAll);
+  // Vendedor (multi-select) — solo los del catálogo, en MAYÚSCULAS
   var catVends=[...new Set(CAT.map(function(r){return(r[1]||'').toUpperCase().trim();}))].filter(Boolean).sort();
   if(!catVends.length) catVends=[...new Set(ALL.map(function(r){return r[F.VENDEDOR];}))].filter(Boolean).sort();
-  catVends.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;fvEl.appendChild(o);});
-  if(fvCur&&catVends.indexOf(fvCur)>=0)fvEl.value=fvCur;
+  buildMselList('vend', catVends);
   fill('f-cli',function(r){return r[F.CLIENTE];});
   fill('f-fam',function(r){return r[F.FAMILIA];});
   // Reporte cliente select
@@ -615,15 +705,15 @@ function populateFilters(){
 }
 
 function applyFilters(){
-  var yr=document.getElementById('f-year').value;
-  var mes=document.getElementById('f-mes').value;
-  var ven=document.getElementById('f-vend').value;
+  var yrs=mselState.year;   // array, vacío = todos
+  var mess=mselState.mes;
+  var vens=mselState.vend;
   var cli=document.getElementById('f-cli').value;
   var fam=document.getElementById('f-fam').value;
   filteredData=ALL.filter(function(r){
-    if(yr&&r[F.AÑO]!==yr)return false;
-    if(mes&&r[F.MES]!==mes)return false;
-    if(ven&&r[F.VENDEDOR]!==ven)return false;
+    if(yrs.length && yrs.indexOf(r[F.AÑO])<0)return false;
+    if(mess.length && mess.indexOf(r[F.MES])<0)return false;
+    if(vens.length && vens.indexOf(r[F.VENDEDOR])<0)return false;
     if(cli&&r[F.CLIENTE]!==cli)return false;
     if(fam&&r[F.FAMILIA]!==fam)return false;
     if(clickFilters.mes&&r[F.MES]!==clickFilters.mes)return false;
@@ -632,11 +722,11 @@ function applyFilters(){
     if(clickFilters.familia&&r[F.FAMILIA]!==clickFilters.familia)return false;
     return true;
   });
-  var active=[yr,mes,ven,cli,fam].filter(Boolean).length+Object.values(clickFilters).filter(Boolean).length;
+  var active=(yrs.length?1:0)+(mess.length?1:0)+(vens.length?1:0)+[cli,fam].filter(Boolean).length+Object.values(clickFilters).filter(Boolean).length;
   document.getElementById('finfo').textContent=active?active+' filtro(s) · '+filteredData.length.toLocaleString()+' registros':filteredData.length.toLocaleString()+' registros';
   document.getElementById('rec-count').textContent=filteredData.length.toLocaleString()+' registros';
-  // Mark selects active
-  ['f-year','f-mes','f-vend','f-cli','f-fam'].forEach(function(id){
+  // Mark single selects active (multi-selects handle their own via updateMselLabel)
+  ['f-cli','f-fam'].forEach(function(id){
     var el=document.getElementById(id);
     el.classList.toggle('active',!!el.value);
   });
@@ -647,7 +737,12 @@ function applyFilters(){
 }
 
 function resetFilters(){
-  ['f-year','f-mes','f-vend','f-cli','f-fam'].forEach(function(id){document.getElementById(id).value='';});
+  mselState={year:[],mes:[],vend:[]};
+  buildMselList('year',mselOptions.year);
+  buildMselList('mes',mselOptions.mes);
+  buildMselList('vend',mselOptions.vend);
+  document.getElementById('f-cli').value='';
+  document.getElementById('f-fam').value='';
   clickFilters={mes:null,cliente:null,vendedor:null,familia:null};
   applyFilters();
 }
@@ -1312,32 +1407,25 @@ async function syncToGitHub(tipo, data, filename){
 // ══════════════════════════════════════════
 // DASHBOARD VENDEDORES
 // ══════════════════════════════════════════
-function getVendorData(yr, mes){
+function getVendorData(yrs, mess){
   return ALL.filter(function(r){
     if(r[F.VENDEDOR]==='SIN ASIGNAR') return false;
-    if(yr  && r[F.AÑO]!==yr)  return false;
-    if(mes && r[F.MES]!==mes)  return false;
+    if(yrs.length  && yrs.indexOf(r[F.AÑO])<0)  return false;
+    if(mess.length && mess.indexOf(r[F.MES])<0)  return false;
     return true;
   });
 }
 
 function renderVendedores(){
-  // Populate filters first
-  var fyEl=document.getElementById('vd-year'), fyCur=fyEl.value;
-  fyEl.innerHTML='<option value="">Todos los años</option>';
+  // Populate multi-select filters first
   var years=[...new Set(ALL.map(function(r){return r[F.AÑO];}))].filter(Boolean).sort();
-  years.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;fyEl.appendChild(o);});
-  if(fyCur) fyEl.value=fyCur;
+  buildMselList('vdyear', years);
+  var mesesAll=[...new Set(ALL.map(function(r){return r[F.MES];}))].filter(Boolean).sort(function(a,b){return MONTHS.indexOf(a)-MONTHS.indexOf(b);});
+  buildMselList('vdmes', mesesAll);
 
-  var fmEl=document.getElementById('vd-mes'), fmCur=fmEl.value;
-  fmEl.innerHTML='<option value="">Todos los meses</option>';
-  var meses=[...new Set(ALL.map(function(r){return r[F.MES];}))].filter(Boolean).sort(function(a,b){return MONTHS.indexOf(a)-MONTHS.indexOf(b);});
-  meses.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;fmEl.appendChild(o);});
-  if(fmCur) fmEl.value=fmCur;
-
-  var yr  = document.getElementById('vd-year').value;
-  var mes = document.getElementById('vd-mes').value;
-  var data = getVendorData(yr, mes);
+  var yrs  = mselState.vdyear;
+  var mess = mselState.vdmes;
+  var data = getVendorData(yrs, mess);
 
   // Aggregate by vendor
   var vendors={};
@@ -1417,7 +1505,7 @@ function renderVendedores(){
   drawVdBarUtil(vList);
 
   // ── DETALLE VENDEDOR ──
-  renderVdDetail(vList, yr, mes);
+  renderVdDetail(vList);
 }
 
 function kpiMini(ico, lbl, val){
@@ -1454,7 +1542,7 @@ function drawVdBarUtil(vList){
         borderWidth:1,borderRadius:4}]},options:o});
 }
 
-function renderVdDetail(vList, yr, mes){
+function renderVdDetail(vList){
   var detail=vList.map(function(e,i){
     var name=e[0], d=e[1];
     var color=COLORS[i%COLORS.length];
@@ -1525,7 +1613,7 @@ function renderVdDetail(vList, yr, mes){
       +'</div></div>'
       +'</div>'
       // Botón exportar
-      +'<div style="margin-top:12px;text-align:right;"><button class="btn btn-out" style="font-size:10px;" data-vend="'+encodeURIComponent(name)+'" data-yr="'+encodeURIComponent(yr)+'" data-mes="'+encodeURIComponent(mes)+'" onclick="exportVendedorCSV(decodeURIComponent(this.dataset.vend),decodeURIComponent(this.dataset.yr),decodeURIComponent(this.dataset.mes))">⬇ Exportar CSV</button></div>'
+      +'<div style="margin-top:12px;text-align:right;"><button class="btn btn-out" style="font-size:10px;" data-vend="'+encodeURIComponent(name)+'" onclick="exportVendedorCSV(decodeURIComponent(this.dataset.vend))">⬇ Exportar CSV</button></div>'
       +'</div>'
       +'</div>';
   }).join('');
@@ -1533,11 +1621,12 @@ function renderVdDetail(vList, yr, mes){
   document.getElementById('vd-detail').innerHTML=detail;
 }
 
-function exportVendedorCSV(vend, yr, mes){
+function exportVendedorCSV(vend){
+  var yrs=mselState.vdyear, mess=mselState.vdmes;
   var data=ALL.filter(function(r){
     if(r[F.VENDEDOR]!==vend) return false;
-    if(yr&&r[F.AÑO]!==yr) return false;
-    if(mes&&r[F.MES]!==mes) return false;
+    if(yrs.length && yrs.indexOf(r[F.AÑO])<0) return false;
+    if(mess.length && mess.indexOf(r[F.MES])<0) return false;
     return true;
   });
   var headers=['Folio','Fecha','Cliente','SKU','Familia','Cantidad','Venta USD','Util.Op.','Markup%'];
