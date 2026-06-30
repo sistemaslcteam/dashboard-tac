@@ -224,38 +224,20 @@ td:first-child .tc{padding-left:12px;}
 </div>
 
 
-<!-- MODAL GITHUB CONFIG -->
+<!-- MODAL INFO SINCRONIZACIÓN -->
 <div class="ov" id="modalGH">
-  <div class="md" onclick="event.stopPropagation()" style="max-width:500px">
-    <h3>⚙️ Configuración de sincronización</h3>
-    <p>Conecta con GitHub para que los datos actualizados sean visibles en <strong>todas las computadoras</strong> automáticamente.</p>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;">
-      <div>
-        <label style="font-size:11px;font-weight:600;color:var(--tx2);display:block;margin-bottom:4px;">GitHub Token (Personal Access Token)</label>
-        <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-          style="width:100%;padding:7px 10px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
-        <div style="font-size:10px;color:var(--tx2);margin-top:3px;">Crea uno en github.com → Settings → Developer settings → Personal access tokens → Tokens (classic) con permiso <strong>repo</strong></div>
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:var(--tx2);display:block;margin-bottom:4px;">Repositorio (usuario/repo)</label>
-        <input id="gh-repo" type="text" placeholder="tuusuario/dashboard-tac"
-          style="width:100%;padding:7px 10px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:var(--tx2);display:block;margin-bottom:4px;">Rama</label>
-        <input id="gh-branch" type="text" value="main"
-          style="width:100%;padding:7px 10px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
-      </div>
-    </div>
-    <div style="background:var(--gbg);border:1px solid rgba(46,204,113,.3);border-radius:7px;padding:10px;font-size:11px;color:#065f46;margin-bottom:12px;">
+  <div class="md" onclick="event.stopPropagation()" style="max-width:460px">
+    <h3>☁️ Sincronización automática</h3>
+    <p>Este dashboard guarda los datos automáticamente en el servidor cada vez que alguien sube un archivo. 
+    <strong>No necesitas configurar nada</strong> — solo sube tu Excel o CSV con los botones de arriba.</p>
+    <div style="background:var(--gbg);border:1px solid rgba(46,204,113,.3);border-radius:7px;padding:12px;font-size:12px;color:#065f46;margin-bottom:12px;line-height:1.6;">
       <strong>¿Cómo funciona?</strong><br>
-      Al subir un archivo, los datos se guardan en el repositorio de GitHub como <code>data/ventas.json.gz</code>. 
-      Cualquier computadora que abra el dashboard carga automáticamente los datos más recientes desde GitHub.
+      1. Subes un archivo (Base de Ventas, Vendedor–Cliente, u Órdenes de Compra)<br>
+      2. El servidor lo guarda automáticamente<br>
+      3. Cualquier persona que abra este enlace verá los datos actualizados al recargar la página
     </div>
-    <div class="ur" id="resGH"></div>
     <div class="mda">
-      <button class="btn btn-out" onclick="closeModal('modalGH')">Cancelar</button>
-      <button class="btn bg" onclick="saveGHConfig()">💾 Guardar configuración</button>
+      <button class="btn bn" onclick="closeModal('modalGH')">Entendido</button>
     </div>
   </div>
 </div>
@@ -276,7 +258,7 @@ td:first-child .tc{padding-left:12px;}
     <button class="btn bg" onclick="openModal('modalVentas')">⬆ Base de Ventas</button>
     <button class="btn bam" onclick="openModal('modalRel')">👥 Vendedor–Cliente</button>
     <button class="btn bbl" onclick="openModal('modalOC')">📋 Órdenes de Compra</button>
-    <button class="btn btn-out" onclick="openModal('modalGH')" title="Configurar sincronización GitHub" id="btn-gh-status">⚙️ Sincronización</button>
+    <button class="btn btn-out" onclick="openModal('modalGH')" title="Información de sincronización" id="btn-gh-status">☁️ Auto-sincronización activa</button>
     <button class="btn btn-out" onclick="resetFilters()">↺ Limpiar</button>
   </div>
 </header>
@@ -1203,12 +1185,12 @@ function saveGHConfig(){
 function updateGHStatus(connected){
   var btn=document.getElementById('btn-gh-status');
   if(!btn)return;
-  if(connected&&GH_TOKEN&&GH_REPO){
+  if(connected){
     btn.style.borderColor='var(--g)';btn.style.color='var(--gd)';
     btn.textContent='✅ Sincronizado';
   }else{
     btn.style.borderColor='';btn.style.color='';
-    btn.textContent='⚙️ Sincronización';
+    btn.textContent='☁️ Auto-sincronización activa';
   }
 }
 
@@ -1307,19 +1289,22 @@ async function compressToB64(data){
 
 // ── SYNC after upload ──
 async function syncToGitHub(tipo, data, filename){
-  if(!GH_TOKEN||!GH_REPO)return;
   try{
-    showToast('☁️ Guardando en GitHub...');
-    // Encode JSON as base64 for GitHub API (GitHub API requires base64 content)
-    var jsonStr=JSON.stringify(data,null,0);
-    var b64=btoa(unescape(encodeURIComponent(jsonStr)));
-    var path=tipo==='ventas'?GH_FILES.ventas:tipo==='cat'?GH_FILES.cat:GH_FILES.oc;
-    await pushToGitHub(path, b64, 'Update '+tipo+' - '+new Date().toISOString().substring(0,10)+' - '+filename);
-    showToast('✅ Datos guardados. Todas las PCs verán la actualización al recargar.');
+    showToast('☁️ Guardando datos en el servidor...');
+    var r=await fetch('/.netlify/functions/save-data',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tipo:tipo, data:data, filename:filename||'sin nombre'})
+    });
+    var json=await r.json();
+    if(!r.ok){
+      throw new Error(json.error||('HTTP '+r.status));
+    }
+    showToast('✅ Datos guardados. Visible para todos al recargar la página.');
     updateGHStatus(true);
   }catch(err){
-    showToast('⚠️ Configura ⚙️ Sincronización con tu token GitHub para guardar.');
-    console.warn('GitHub sync:',err.message);
+    showToast('⚠️ No se pudo guardar en el servidor: '+err.message);
+    console.warn('save-data error:',err.message);
   }
 }
 
