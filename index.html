@@ -862,13 +862,25 @@ function drawLine(){
   }
 
   if(!ds.length){noData('lineChart');return;}
+  // Filtrar solo meses con datos (excluir meses futuros sin ventas)
+  if(typeof labels[0]==='string' && labels.length===12){
+    var activeMesIdx=labels.map(function(l,i){
+      return ds.some(function(d){return (d.data[i]||0)>0;}) ? i : -1;
+    }).filter(function(i){return i>=0;});
+    var newLabels=activeMesIdx.map(function(i){return labels[i];});
+    ds=ds.map(function(d){
+      var nd=Object.assign({},d);
+      nd.data=activeMesIdx.map(function(i){return d.data[i]||0;});
+      return nd;
+    });
+    labels=newLabels;
+  }
   var o=cO();
   o.onClick=function(evt,els){
     if(!els.length)return;
-    var idx=els[0].index;
-    var m=MONTHS[idx];
-    if(labels===MONTHS.map(function(m){return m.substring(0,3);}))
-      clickFilters.mes=clickFilters.mes===m?null:m;
+    var lbl=labels[els[0].index];
+    var m=MONTHS.find(function(x){return x.substring(0,3)===lbl;})||lbl;
+    clickFilters.mes=clickFilters.mes===m?null:m;
     applyFilters();
   };
   charts['lineChart']=new Chart(ctx,{type:'line',data:{labels:labels,datasets:ds},options:o});
@@ -926,34 +938,41 @@ function drawMes(){
   if(selVend.length >= 2){
     // Barras agrupadas: una por vendedor + TOTAL
     o.plugins.legend={display:true,labels:{color:'#64748b',font:{family:'Inter',size:10},boxWidth:10}};
+    var byMTv=groupBy(filteredData,function(r){return r[F.MES];},function(r){return r[F.VENTA];});
+    var activeMesVd=MONTHS.filter(function(m){return (byMTv[m]||0)>0;});
+    labels=activeMesVd.map(function(m){return m.substring(0,3);});
     selVend.forEach(function(vend,i){
       var sub=filteredData.filter(function(r){return r[F.VENDEDOR]===vend;});
       var byM=groupBy(sub,function(r){return r[F.MES];},function(r){return r[F.VENTA];});
-      ds.push({label:vend,data:MONTHS.map(function(m){return byM[m]||0;}),
+      ds.push({label:vend,data:activeMesVd.map(function(m){return byM[m]||0;}),
         backgroundColor:COLORS[i%COLORS.length]+'cc',borderColor:COLORS[i%COLORS.length],borderWidth:1,borderRadius:3});
     });
-    var byMT=groupBy(filteredData,function(r){return r[F.MES];},function(r){return r[F.VENTA];});
-    ds.push({label:'TOTAL',data:MONTHS.map(function(m){return byMT[m]||0;}),
+    ds.push({label:'TOTAL',data:activeMesVd.map(function(m){return byMTv[m]||0;}),
       backgroundColor:'#0d2a4acc',borderColor:'#0d2a4a',borderWidth:1,borderRadius:3});
   } else if(selYrs.length >= 2){
     // Barras agrupadas: una por año
     o.plugins.legend={display:true,labels:{color:'#64748b',font:{family:'Inter',size:10},boxWidth:10}};
+    var byMT2=groupBy(filteredData,function(r){return r[F.MES];},function(r){return r[F.VENTA];});
+    var activeMesYr=MONTHS.filter(function(m){return (byMT2[m]||0)>0;});
+    labels=activeMesYr.map(function(m){return m.substring(0,3);});
     selYrs.forEach(function(yr,i){
       var sub=filteredData.filter(function(r){return r[F.AÑO]===yr;});
       var byM=groupBy(sub,function(r){return r[F.MES];},function(r){return r[F.VENTA];});
-      ds.push({label:yr,data:MONTHS.map(function(m){return byM[m]||0;}),
+      ds.push({label:yr,data:activeMesYr.map(function(m){return byM[m]||0;}),
         backgroundColor:COLORS[i%COLORS.length]+'cc',borderColor:COLORS[i%COLORS.length],borderWidth:1,borderRadius:3});
     });
-    var byMT=groupBy(filteredData,function(r){return r[F.MES];},function(r){return r[F.VENTA];});
-    ds.push({label:'TOTAL',data:MONTHS.map(function(m){return byMT[m]||0;}),
+    ds.push({label:'TOTAL',data:activeMesYr.map(function(m){return byMT2[m]||0;}),
       backgroundColor:'#0d2a4acc',borderColor:'#0d2a4a',borderWidth:1,borderRadius:3});
   } else {
     var byM=groupBy(filteredData,function(r){return r[F.MES];},function(r){return r[F.VENTA];});
-    ds=[{data:MONTHS.map(function(m){return byM[m]||0;}),
-      backgroundColor:MONTHS.map(function(_,i){return COLORS[i%COLORS.length]+'cc';}),
-      borderColor:MONTHS.map(function(_,i){return COLORS[i%COLORS.length];}),
+    // Solo meses con datos reales (no mostrar meses futuros sin ventas)
+    var activeMes=MONTHS.filter(function(m){return (byM[m]||0)>0;});
+    labels=activeMes.map(function(m){return m.substring(0,3);});
+    ds=[{data:activeMes.map(function(m){return byM[m]||0;}),
+      backgroundColor:activeMes.map(function(_,i){return COLORS[i%COLORS.length]+'cc';}),
+      borderColor:activeMes.map(function(_,i){return COLORS[i%COLORS.length];}),
       borderWidth:1,borderRadius:4}];
-    o.onClick=function(evt,els){if(els.length){var lbl=labels[els[0].index];var m=MONTHS.find(function(x){return x.substring(0,3)===lbl;})||lbl;clickFilters.mes=clickFilters.mes===m?null:m;applyFilters();}};
+    o.onClick=function(evt,els){if(els.length){var m=activeMes[els[0].index];clickFilters.mes=clickFilters.mes===m?null:m;applyFilters();}};
   }
   if(!ds.length){noData('barMes');return;}
   charts['barMes']=new Chart(ctx,{type:'bar',data:{labels:labels,datasets:ds},options:o});
@@ -1013,7 +1032,8 @@ function drawVendedor(){
 }
 function drawUtil(){
   var byM=groupBy(filteredData,function(r){return r[F.MES];},function(r){return r[F.UTIL];});
-  drawVBar('barUtil',MONTHS.map(function(m){return m.substring(0,3);}),MONTHS.map(function(m){return byM[m]||0;}),function(){return'#27ae60';});
+  var activeMes=MONTHS.filter(function(m){return (byM[m]||0)!==0;});
+  drawVBar('barUtil',activeMes.map(function(m){return m.substring(0,3);}),activeMes.map(function(m){return byM[m]||0;}),function(){return'#27ae60';});
 }
 
 // ── TABLE ──
