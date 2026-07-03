@@ -817,21 +817,29 @@ function drawLine(){
       borderDash:[6,3]});
     document.getElementById('badge-line').textContent=yrs.join(' vs ')+' + TOTAL';
   } else if(selMess.length >= 2){
-    // Modo comparar meses: una barra por mes seleccionado comparando años disponibles
-    var allYrs=[...new Set(filteredData.map(function(r){return r[F.AÑO];}))].filter(Boolean).sort();
-    labels = allYrs;
-    selMess.forEach(function(mes,i){
-      var sub=filteredData.filter(function(r){return r[F.MES]===mes;});
-      var byY=groupBy(sub,function(r){return r[F.AÑO];},function(r){return r[F.VENTA];});
-      ds.push({label:mes,data:allYrs.map(function(y){return byY[y]||0;}),
-        borderColor:COLORS[i%COLORS.length],backgroundColor:COLORS[i%COLORS.length]+'15',
-        tension:.3,fill:false,pointRadius:4,pointHoverRadius:6,borderWidth:2});
-    });
-    // TOTAL meses seleccionados por año
-    var byYTotal=groupBy(filteredData,function(r){return r[F.AÑO];},function(r){return r[F.VENTA];});
-    ds.push({label:'TOTAL',data:allYrs.map(function(y){return byYTotal[y]||0;}),
+    // Modo comparar meses: eje X = meses seleccionados, una línea por vendedor + TOTAL
+    labels = selMess.map(function(m){return m.substring(0,3);});
+    var allVends=[...new Set(filteredData.map(function(r){return r[F.VENDEDOR];}))].filter(function(v){return v!=='SIN ASIGNAR';}).sort();
+    if(allVends.length > 1){
+      // Mostrar una línea por vendedor
+      allVends.forEach(function(vend,i){
+        ds.push({label:vend,
+          data:selMess.map(function(mes){
+            var sub=filteredData.filter(function(r){return r[F.MES]===mes&&r[F.VENDEDOR]===vend;});
+            return sub.reduce(function(s,r){return s+r[F.VENTA];},0);
+          }),
+          borderColor:COLORS[i%COLORS.length],backgroundColor:COLORS[i%COLORS.length]+'15',
+          tension:.3,fill:false,pointRadius:5,pointHoverRadius:7,borderWidth:2});
+      });
+    }
+    // Línea TOTAL
+    ds.push({label:'TOTAL',
+      data:selMess.map(function(mes){
+        var sub=filteredData.filter(function(r){return r[F.MES]===mes;});
+        return sub.reduce(function(s,r){return s+r[F.VENTA];},0);
+      }),
       borderColor:'#0d2a4a',backgroundColor:'#0d2a4a18',
-      tension:.3,fill:true,pointRadius:5,pointHoverRadius:7,borderWidth:2.5,borderDash:[6,3]});
+      tension:.3,fill:true,pointRadius:6,pointHoverRadius:8,borderWidth:2.5,borderDash:[6,3]});
     document.getElementById('badge-line').textContent=selMess.join(' vs ')+' + TOTAL';
   } else if(selVend.length >= 2){
     // Modo comparar vendedores: una línea por vendedor + TOTAL
