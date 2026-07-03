@@ -1,14 +1,8 @@
 // netlify/functions/save-data.js
-//
-// Función serverless que recibe datos (ventas, cat, oc) desde el dashboard
-// y los guarda en GitHub usando un token GUARDADO COMO VARIABLE DE ENTORNO
-// en Netlify (nunca expuesto al navegador).
-//
-// El usuario del dashboard NO necesita configurar nada — solo sube su archivo
-// y esta función hace el resto de forma segura.
+// Guarda datos en GitHub desde el dashboard.
+// Maneja automáticamente conflictos de SHA (409) con hasta 3 reintentos.
 
 exports.handler = async function (event) {
-  // Solo aceptar POST
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -20,76 +14,88 @@ exports.handler = async function (event) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Faltan parámetros: tipo, data' }) };
     }
 
-    // Estas variables se configuran en Netlify → Site settings → Environment variables
-    // NUNCA se exponen al navegador del usuario.
     const GH_TOKEN  = process.env.GITHUB_TOKEN;
-    const GH_REPO   = process.env.GITHUB_REPO;   // ej: "sistemaslcteam/dashboard-tac"
+    const GH_REPO   = process.env.GITHUB_REPO;
     const GH_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
     if (!GH_TOKEN || !GH_REPO) {
       return {
         statusCode: 500,
-        body: JSON.stringify({
-          error: 'Servidor no configurado. Faltan variables de entorno GITHUB_TOKEN / GITHUB_REPO en Netlify.'
-        })
+        body: JSON.stringify({ error: 'Faltan variables de entorno: GITHUB_TOKEN / GITHUB_REPO' })
       };
     }
 
-    const fileMap = {
-      ventas: 'data/ventas.json',
-      cat: 'data/cat.json',
-      oc: 'data/oc.json'
-    };
+    const fileMap = { ventas: 'data/ventas.json', cat: 'data/cat.json', oc: 'data/oc.json' };
     const path = fileMap[tipo];
     if (!path) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Tipo inválido. Usa: ventas, cat, oc' }) };
     }
 
-    // El contenido ya viene como JSON string desde el dashboard
-    const jsonStr = JSON.stringify(data);
+    const jsonStr    = JSON.stringify(data);
     const contentB64 = Buffer.from(jsonStr, 'utf-8').toString('base64');
-
-    const apiBase = `https://api.github.com/repos/${GH_REPO}/contents/${path}`;
-    const headers = {
+    const apiBase    = `https://api.github.com/repos/${GH_REPO}/contents/${path}`;
+    const headers    = {
       'Authorization': `token ${GH_TOKEN}`,
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'dashboard-tac-sync'
+      'Accept':        'application/vnd.github.v3+json',
+      'Content-Type':  'application/json',
+      'User-Agent':    'dashboard-tac-sync'
     };
 
-    // 1. Obtener el SHA actual del archivo (si existe) — requerido por GitHub para actualizar
-    let sha = null;
-    const getResp = await fetch(`${apiBase}?ref=${GH_BRANCH}`, { headers });
-    if (getResp.ok) {
-      const getJson = await getResp.json();
-      sha = getJson.sha || null;
-    }
+    // Intentar hasta 3 veces (maneja conflictos 409 por SHA desactualizado)
+    const MAX_RETRIES = 3;
+    let lastError = null;
 
-    // 2. Subir / actualizar el archivo
-    const body = {
-      message: `Update ${tipo} - ${new Date().toISOString().slice(0, 10)} - ${filename || 'sin nombre'}`,
-      content: contentB64,
-      branch: GH_BRANCH
-    };
-    if (sha) body.sha = sha;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      // 1. Obtener SHA actual FRESCO en cada intento
+      let sha = null;
+      const getResp = await fetch(`${apiBase}?ref=${GH_BRANCH}&t=${Date.now()}`, { headers });
+      if (getResp.ok) {
+        const getJson = await getResp.json();
+        sha = getJson.sha || null;
+      }
 
-    const putResp = await fetch(apiBase, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify(body)
-    });
-
-    if (!putResp.ok) {
-      const errJson = await putResp.json().catch(() => ({}));
-      return {
-        statusCode: putResp.status,
-        body: JSON.stringify({ error: errJson.message || 'Error al subir a GitHub' })
+      // 2. Intentar subir con el SHA fresco
+      const body = {
+        message: `Update ${tipo} - ${new Date().toISOString().slice(0, 16).replace('T', ' ')} - ${filename || 'dashboard'}`,
+        content: contentB64,
+        branch:  GH_BRANCH
       };
+      if (sha) body.sha = sha;
+
+      const putResp = await fetch(apiBase, {
+        method:  'PUT',
+        headers,
+        body:    JSON.stringify(body)
+      });
+
+      if (putResp.ok) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            success: true, tipo, path,
+            rows: Array.isArray(data) ? data.length : null,
+            attempt
+          })
+        };
+      }
+
+      const errJson = await putResp.json().catch(() => ({}));
+      lastError = errJson.message || `HTTP ${putResp.status}`;
+
+      // Si NO es 409, no reintentar
+      if (putResp.status !== 409) {
+        return { statusCode: putResp.status, body: JSON.stringify({ error: lastError }) };
+      }
+
+      // Es 409 — esperar y reintentar con SHA fresco
+      if (attempt < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, 400 * attempt));
+      }
     }
 
     return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true, tipo, path, rows: Array.isArray(data) ? data.length : null })
+      statusCode: 409,
+      body: JSON.stringify({ error: `Conflicto tras ${MAX_RETRIES} intentos: ${lastError}` })
     };
 
   } catch (err) {
