@@ -1230,6 +1230,11 @@ function exportOCCSV(){
 function excelDateToJS(s){var d=Math.floor(s-25569);return new Date(d*86400000);}
 
 function rowsToVentas(rows){
+  // Filtrar solo ventas de SALLYMARI BELLMAN (plaza Juárez)
+  rows = rows.filter(function(r){
+    var vend = String(r['Vendedor']||r['VENDEDOR']||r['vendedor']||'').trim().toUpperCase();
+    return vend === 'SALLYMARI BELLMAN';
+  });
   return rows.map(function(r){
     var rawF=r['Fecha']||r['FECHA']||r['fecha']||'';
     var d=null;
