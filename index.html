@@ -1360,20 +1360,37 @@ document.addEventListener('DOMContentLoaded',function(){
   setupUpload('fiRel','dzRel','resRel',function(file,res){
     res.style.display='block';res.className='ur';res.textContent='Procesando '+file.name+'…';
     readFile(file,function(rows){
-      CAT=rows.map(function(r){
-        return[
-          (String(r['Cliente']||r['CLIENTE']||r['cliente']||'').trim()).toUpperCase(),
-          (String(r['Vendedor']||r['VENDEDOR']||r['vendedor']||'').trim()).toUpperCase()
-        ];
-      }).filter(function(r){return r[0]&&r[1];});
+      // Leer catálogo — acepta columnas Cliente/Vendedor o CLIENTE/VENDEDOR
+      var newCat=rows.map(function(r){
+        var cli=(String(r['Cliente']||r['CLIENTE']||r['cliente']||Object.values(r)[0]||'').trim()).toUpperCase();
+        var vend=(String(r['Vendedor']||r['VENDEDOR']||r['vendedor']||Object.values(r)[1]||'').trim()).toUpperCase();
+        return[cli,vend];
+      }).filter(function(r){return r[0]&&r[1]&&r[0]!=='CLIENTE'&&r[1]!=='VENDEDOR';});
+
+      if(!newCat.length){
+        res.className='ur er';
+        res.textContent='No se encontraron datos. Verifica que el archivo tenga columnas Cliente y Vendedor.';
+        return;
+      }
+
+      CAT=newCat;
       CAT_MAP=buildCatMap(CAT);
-      ALL=ALL.map(function(r){var v=CAT_MAP[(r[F.CLIENTE]||'').toUpperCase()];if(v){r=r.slice();r[F.VENDEDOR]=v;}return r;});
+
+      // Re-aplicar vendedores del catálogo a TODOS los registros de ventas
+      ALL=ALL.map(function(r){
+        var v=CAT_MAP[(r[F.CLIENTE]||'').toUpperCase()];
+        if(v){ r=r.slice(); r[F.VENDEDOR]=v; }
+        return r;
+      });
+
       REL=buildRelFromCat(ALL,CAT);
-      populateFilters();applyFilters();renderRelaciones();
-      res.className='ur ok';res.textContent='✓ Catálogo actualizado: '+CAT.length+' clientes.';
-      showToast('✓ Catálogo Vendedor–Cliente actualizado');
+      populateFilters();applyFilters();renderRelaciones();renderVendedores();
+
+      res.className='ur ok';
+      res.textContent='✓ Catálogo actualizado: '+CAT.length+' clientes. Vendedores reasignados correctamente.';
+      showToast('✓ '+CAT.length+' clientes cargados — vendedores actualizados en todos los registros');
       syncToGitHub('cat', CAT, file.name);
-      setTimeout(function(){closeModal('modalRel');},2000);
+      setTimeout(function(){closeModal('modalRel');},2500);
     });
   });
 
@@ -1529,8 +1546,16 @@ async function loadFromGitHub(){
     ]);
 
     var changed=false;
-    if(vData&&Array.isArray(vData)){ALL=vData;changed=true;}
     if(cData&&Array.isArray(cData)){CAT=cData;CAT_MAP=buildCatMap(CAT);}
+    if(vData&&Array.isArray(vData)){
+      // Re-aplicar vendedores del catálogo a los datos de ventas
+      ALL=vData.map(function(r){
+        var v=CAT_MAP[(r[F.CLIENTE]||'').toUpperCase()];
+        if(v){ r=r.slice(); r[F.VENDEDOR]=v; }
+        return r;
+      });
+      changed=true;
+    }
     if(oData&&Array.isArray(oData)){OC_DATA=oData;}
     if(changed){
       REL=buildRelFromCat(ALL,CAT);
