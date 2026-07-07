@@ -278,6 +278,7 @@ td:first-child .tc{padding-left:12px;}
     <button class="btn bam" onclick="openModal('modalRel')">👥 Vendedor–Cliente</button>
     <button class="btn bbl" onclick="openModal('modalOC')">📋 Órdenes de Compra</button>
     <button class="btn btn-out" onclick="openModal('modalGH')" title="Información de sincronización" id="btn-gh-status">☁️ Auto-sincronización activa</button>
+    <button class="btn btn-out" onclick="recargarDatos()" title="Recargar datos desde el servidor" id="btn-reload">🔄 Recargar</button>
     <button class="btn btn-out" onclick="resetFilters()">↺ Limpiar</button>
   </div>
 </header>
@@ -1546,10 +1547,19 @@ async function loadFromGitHub(){
     ]);
 
     var changed=false;
+    // Cargar catálogo primero (define vendedores)
     if(cData&&Array.isArray(cData)){CAT=cData;CAT_MAP=buildCatMap(CAT);}
+    // Cargar ventas y aplicar catálogo inmediatamente
     if(vData&&Array.isArray(vData)){
-      // Re-aplicar vendedores del catálogo a los datos de ventas
       ALL=vData.map(function(r){
+        var v=CAT_MAP[(r[F.CLIENTE]||'').toUpperCase()];
+        if(v){ r=r.slice(); r[F.VENDEDOR]=v; }
+        return r;
+      });
+      changed=true;
+    } else if(ALL.length && CAT_MAP && Object.keys(CAT_MAP).length){
+      // Ventas ya cargadas pero catálogo actualizó — re-aplicar vendedores
+      ALL=ALL.map(function(r){
         var v=CAT_MAP[(r[F.CLIENTE]||'').toUpperCase()];
         if(v){ r=r.slice(); r[F.VENDEDOR]=v; }
         return r;
@@ -1846,6 +1856,62 @@ function exportVendedorCSV(vend){
   a.download='vendedor_'+vend.replace(/\s/g,'_')+'.csv';
   a.click();
 }
+
+
+// ── RECARGAR DATOS DESDE GITHUB ──
+async function recargarDatos(){
+  var btn=document.getElementById('btn-reload');
+  if(btn){btn.textContent='⏳ Recargando...';btn.disabled=true;}
+  try{
+    document.getElementById('loadingScreen').classList.remove('hidden');
+    document.getElementById('loadingScreen').querySelector('p').textContent='Recargando datos actualizados...';
+    var loaded=await loadFromGitHub();
+    if(loaded){
+      showToast('✅ Datos actualizados correctamente');
+    } else {
+      showToast('⚠️ No se pudo conectar con el servidor');
+    }
+  }catch(e){
+    showToast('⚠️ Error al recargar: '+e.message);
+  }finally{
+    document.getElementById('loadingScreen').classList.add('hidden');
+    if(btn){btn.textContent='🔄 Recargar';btn.disabled=false;}
+  }
+}
+
+
+// ── AUTO-REFRESH DEL CATÁLOGO cada 5 minutos ──
+setInterval(async function(){
+  if(!GH_REPO) return;
+  try{
+    async function fetchJSON(path){
+      var url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+path+'?t='+Date.now();
+      var controller=new AbortController();
+      var timer=setTimeout(function(){controller.abort();},10000);
+      var r=await fetch(url,{signal:controller.signal});
+      clearTimeout(timer);
+      if(!r.ok) return null;
+      return await r.json();
+    }
+    var newCat=await fetchJSON(GH_FILES.cat);
+    if(newCat&&Array.isArray(newCat)){
+      var oldStr=JSON.stringify(CAT);
+      var newStr=JSON.stringify(newCat);
+      if(oldStr!==newStr){
+        // El catálogo cambió — re-aplicar vendedores
+        CAT=newCat; CAT_MAP=buildCatMap(CAT);
+        ALL=ALL.map(function(r){
+          var v=CAT_MAP[(r[F.CLIENTE]||'').toUpperCase()];
+          if(v){ r=r.slice(); r[F.VENDEDOR]=v; }
+          return r;
+        });
+        REL=buildRelFromCat(ALL,CAT);
+        populateFilters();applyFilters();renderRelaciones();renderVendedores();
+        showToast('✅ Catálogo de vendedores actualizado automáticamente');
+      }
+    }
+  }catch(e){ /* silencioso */ }
+}, 5 * 60 * 1000); // cada 5 minutos
 
 function showToast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3500);}
 
