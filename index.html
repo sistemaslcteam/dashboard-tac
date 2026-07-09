@@ -213,7 +213,18 @@ td:first-child .tc{padding-left:12px;}
 <div class="ov" id="modalVentas">
   <div class="md" onclick="event.stopPropagation()">
     <h3>📊 Actualizar Base de Ventas</h3>
-    <p>Sube el archivo Excel o CSV de ventas. Columnas requeridas: <em>Folio, Cliente, Vendedor, Fecha, Clave, Cantidad, Venta, Util. op., Markup</em></p>
+    <p>Sube tu archivo <strong>Excel o CSV</strong>. Los registros nuevos se acumulan automáticamente — los folios duplicados se omiten.</p>
+    <div style="background:var(--gy);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;gap:20px;align-items:center;">
+      <span style="font-size:11px;font-weight:700;color:var(--tx2);">MODO:</span>
+      <label style="font-size:12px;display:flex;align-items:center;gap=6px;cursor:pointer;gap:6px;">
+        <input type="radio" name="upload-mode" value="incremental" checked style="accent-color:var(--nv);width:14px;height:14px;">
+        <span><strong>Incremental</strong> — agrega registros nuevos</span>
+      </label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="radio" name="upload-mode" value="replace" style="accent-color:var(--rd);width:14px;height:14px;">
+        <span><strong>Reemplazar</strong> — borra y recarga todo</span>
+      </label>
+    </div>
     <div class="dz" id="dzVentas"><input type="file" id="fiVentas" accept=".xlsx,.xls,.csv"><div style="font-size:26px;margin-bottom:8px">📂</div><div style="font-size:11px;color:var(--tx2)">Clic o arrastra <strong>.xlsx / .csv</strong></div></div>
     <div class="ur" id="resVentas"></div>
     <div class="mda"><button class="btn btn-out" onclick="closeModal('modalVentas')">Cerrar</button></div>
