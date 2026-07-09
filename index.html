@@ -1342,19 +1342,54 @@ document.addEventListener('DOMContentLoaded',function(){
   setupUpload('fiVentas','dzVentas','resVentas',function(file,res){
     res.style.display='block';res.className='ur';res.textContent='Procesando '+file.name+'…';
     readFile(file,function(rows){
-      ALL=rowsToVentas(rows);
+      // Convertir nuevas filas y aplicar catálogo
+      var newRows=rowsToVentas(rows);
       CAT_MAP=buildCatMap(CAT);
-      REL=buildRelFromCat(ALL,CAT);
-      OC_DATA=rowsToOC(ALL.map(function(r){return{Folio:r[F.FOLIO],OC:r[F.OC],Cliente:r[F.CLIENTE],Vendedor:r[F.VENDEDOR],Fecha:r[F.FECHA],Clave:r[F.CLAVE],Cantidad:r[F.CANT],Venta:r[F.VENTA]};}));
+      newRows=newRows.map(function(r){
+        var v=CAT_MAP[(r[F.CLIENTE]||'').toUpperCase()];
+        if(v){r=r.slice();r[F.VENDEDOR]=v;}
+        return r;
+      });
+
+      // ── MERGE INCREMENTAL por Folio ──
+      var existingFolios={};
+      ALL.forEach(function(r){if(r[F.FOLIO]) existingFolios[r[F.FOLIO]]=true;});
+
+      var modeEl=document.querySelector('input[name="upload-mode"]:checked');
+      var mode=modeEl?modeEl.value:'incremental';
+      var added=0, duplicates=0;
+
+      if(mode==='replace'){
+        // Reemplazar todo
+        ALL=newRows;
+        added=newRows.length;
+      } else {
+        // Incremental: agregar solo folios nuevos
+        newRows.forEach(function(r){
+          if(!r[F.FOLIO]){
+            ALL.push(r); added++;
+          } else if(!existingFolios[r[F.FOLIO]]){
+            ALL.push(r);
+            existingFolios[r[F.FOLIO]]=true;
+            added++;
+          } else {
+            duplicates++;
+          }
+        });
+      }
+
       OC_DATA=rowsToOC(rows);
+      REL=buildRelFromCat(ALL,CAT);
       populateFilters();applyFilters();renderRelaciones();renderOC();renderVendedores();
+
       document.getElementById('hdr-sub').textContent='Datos: '+file.name+' · '+new Date().toLocaleTimeString('es-MX');
-      res.className='ur ok';res.textContent='✓ '+ALL.length.toLocaleString()+' registros cargados.';
-      showToast('✓ Base de ventas actualizada: '+ALL.length.toLocaleString()+' registros');
-      // Sync to GitHub
+      res.className='ur ok';
+      res.textContent='✓ +'+added+' nuevos | '+duplicates+' duplicados omitidos | Total: '+ALL.length.toLocaleString();
+      showToast('✅ +'+added+' registros nuevos agregados | Total: '+ALL.length.toLocaleString());
+
       syncToGitHub('ventas', ALL, file.name);
       syncToGitHub('oc', OC_DATA, file.name);
-      setTimeout(function(){closeModal('modalVentas');},2000);
+      setTimeout(function(){closeModal('modalVentas');},2500);
     });
   });
 
