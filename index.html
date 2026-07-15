@@ -344,10 +344,10 @@ td:first-child .tc{padding-left:12px;}
   <!-- KPIs -->
   <div class="slabel">Indicadores Clave</div>
   <div class="krow">
-    <div class="kpi k1"><div class="kico">💰</div><div class="kl">Venta Total (USD)</div><div class="kv" id="kv1">$0</div><div class="ksub" id="ks1">—</div></div>
-    <div class="kpi k2"><div class="kico">📈</div><div class="kl">Utilidad Operativa</div><div class="kv" id="kv2">$0</div><div class="ksub" id="ks2">—</div></div>
-    <div class="kpi k3"><div class="kico">📦</div><div class="kl">Unidades Vendidas</div><div class="kv" id="kv3">0</div><div class="ksub" id="ks3">—</div></div>
-    <div class="kpi k4"><div class="kico">👥</div><div class="kl">Clientes Únicos</div><div class="kv" id="kv4">0</div><div class="ksub" id="ks4">—</div></div>
+    <div class="kpi k1"><div class="kico">💰</div><div class="kl">Venta Total (USD)</div><div class="kv" id="kv1" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">$0</div><div class="ksub" id="ks1">—</div></div>
+    <div class="kpi k2"><div class="kico">📈</div><div class="kl">Utilidad Operativa</div><div class="kv" id="kv2" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">$0</div><div class="ksub" id="ks2">—</div></div>
+    <div class="kpi k3"><div class="kico">📦</div><div class="kl">Unidades Vendidas</div><div class="kv" id="kv3" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">0</div><div class="ksub" id="ks3">—</div></div>
+    <div class="kpi k4"><div class="kico">👥</div><div class="kl">Clientes Únicos</div><div class="kv" id="kv4" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">0</div><div class="ksub" id="ks4">—</div></div>
     <div class="kpi k5"><div class="kico">🏆</div><div class="kl">Mejor Mes</div><div class="kv" id="kv5" style="font-size:1rem">—</div><div class="ksub" id="ks5">—</div></div>
   </div>
 
@@ -541,14 +541,16 @@ td:first-child .tc{padding-left:12px;}
           <div style="font-size:10px;font-weight:700;color:var(--tx2);margin-bottom:8px;">📅 Proyección al cierre del mes</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
             <div>
-              <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Días transcurridos</div>
-              <input id="cm-dias-trans" type="number" value="22" min="1" max="31" oninput="renderComision()"
-                style="width:100%;padding:6px 9px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
+              <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Días hábiles transcurridos</div>
+              <input id="cm-dias-trans" type="number" value="15" min="1" max="31" oninput="renderComision()"
+                style="width:100%;padding:6px 9px;border:1.5px solid var(--am);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
+              <div style="font-size:9px;color:var(--tx2);margin-top:2px;">Hasta hoy</div>
             </div>
             <div>
-              <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Días hábiles del mes</div>
+              <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Total días hábiles del mes</div>
               <input id="cm-dias-mes" type="number" value="22" min="1" max="31" oninput="renderComision()"
-                style="width:100%;padding:6px 9px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
+                style="width:100%;padding:6px 9px;border:1.5px solid var(--nv);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
+              <div style="font-size:9px;color:var(--tx2);margin-top:2px;">Total del mes</div>
             </div>
           </div>
         </div>
@@ -884,21 +886,26 @@ function updateKPIs(){
   Object.entries(byM).forEach(function(e){if(e[1]>bestVal){bestVal=e[1];bestMes=e[0];}});
   var pct=ALL.length?Math.round(filteredData.length/ALL.length*100):0;
   document.getElementById('pf').style.width=pct+'%';
-  document.getElementById('pb-ventas').textContent=fmtM(venta);
+  document.getElementById('pb-ventas').textContent=fmtKpi(venta,true);
   document.getElementById('pb-regs').textContent=filteredData.length.toLocaleString();
   document.getElementById('pb-cli').textContent=clientes.toLocaleString();
   var years=[...new Set(ALL.map(function(r){return r[F.AÑO];}))].filter(Boolean).sort();
   document.getElementById('pb-period').textContent=years.length?(years[0]+' – '+years[years.length-1]):'—';
-  document.getElementById('kv1').textContent=fmtM(venta);
+  // Números completos sin abreviar
+  function fmtKpi(n,dollar){
+    var s=Math.round(n).toLocaleString('es-MX');
+    return dollar?'$'+s:s;
+  }
+  document.getElementById('kv1').textContent=fmtKpi(venta,true);
   document.getElementById('ks1').textContent=filteredData.length.toLocaleString()+' transacciones';
-  document.getElementById('kv2').textContent=fmtM(util);
+  document.getElementById('kv2').textContent=fmtKpi(util,true);
   document.getElementById('ks2').textContent=(venta>0?((util/venta)*100).toFixed(1):0)+'% margen';
-  document.getElementById('kv3').textContent=fmtN(cant);
+  document.getElementById('kv3').textContent=Math.round(cant).toLocaleString('es-MX');
   document.getElementById('ks3').textContent='unidades vendidas';
-  document.getElementById('kv4').textContent=fmtN(clientes);
+  document.getElementById('kv4').textContent=clientes.toLocaleString('es-MX');
   document.getElementById('ks4').textContent='clientes activos';
   document.getElementById('kv5').textContent=bestMes;
-  document.getElementById('ks5').textContent=fmtM(bestVal);
+  document.getElementById('ks5').textContent=fmtKpi(bestVal,true);
 }
 
 // ── CHARTS ──
@@ -2193,7 +2200,10 @@ function renderComision(){
   var pendiente = comisionMXPiva - abonado;
 
   // ── PROYECCIÓN ──
-  var factor = diasMes > 0 ? diasMes/diasTrans : 1;
+  // Factor = días hábiles totales del mes / días transcurridos hasta hoy
+  // Si diasTrans >= diasMes significa que ya terminó el mes → proyección = real
+  var factor = (diasTrans > 0 && diasTrans < diasMes) ? diasMes/diasTrans : 1;
+  var esMesCompleto = diasTrans >= diasMes;
   var ventaProy    = venta * factor;
   var costoProy    = costo * factor;
   var utilProy     = ventaProy - costoProy;
@@ -2244,7 +2254,10 @@ function renderComision(){
   // Sección proyección
   html+='<div class="slabel">Proyección al Cierre del Mes</div>';
   html+='<div style="background:#fff;border:1px solid var(--gy2);border-radius:10px;padding:14px;margin-bottom:14px;">';
-  html+='<div style="font-size:11px;color:var(--tx2);margin-bottom:10px;">Factor de proyección: '+diasMes+' días hábiles totales ÷ '+diasTrans+' transcurridos = <strong>×'+factor.toFixed(2)+'</strong></div>';
+  var notaProy = esMesCompleto
+    ? '<span style="color:var(--gd);font-weight:600;">✅ Mes completado — la proyección coincide con el real</span>'
+    : 'Factor: '+diasMes+' días totales ÷ '+diasTrans+' transcurridos = <strong style="color:var(--nv)">×'+factor.toFixed(2)+'</strong> &nbsp;|&nbsp; Faltan <strong>'+(diasMes-diasTrans)+'</strong> días hábiles';
+  html+='<div style="font-size:11px;color:var(--tx2);margin-bottom:10px;">'+notaProy+'</div>';
   html+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">';
   html+=kpiBox('Venta Proy. (USD)', fmtFull(ventaProy), 'var(--nv)');
   html+=kpiBox('% Util. Bruta Proy.', fmtPct(pctUtilProy), '#7c3aed');
