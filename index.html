@@ -1490,7 +1490,10 @@ document.addEventListener('DOMContentLoaded',function(){
 
       // ── MERGE INCREMENTAL por Folio ──
       var existingFolios={};
-      ALL.forEach(function(r){if(r[F.FOLIO]) existingFolios[r[F.FOLIO]]=true;});
+      ALL.forEach(function(r){
+        var key=(r[F.FOLIO]||'')+'|'+(r[F.CLAVE]||'');
+        if(key!=='|') existingFolios[key]=true;
+      });
 
       var modeEl=document.querySelector('input[name="upload-mode"]:checked');
       var mode=modeEl?modeEl.value:'incremental';
@@ -1501,13 +1504,15 @@ document.addEventListener('DOMContentLoaded',function(){
         ALL=newRows;
         added=newRows.length;
       } else {
-        // Incremental: agregar solo folios nuevos
+        // Incremental: agregar solo combinaciones Folio+Clave nuevas
+        // (un folio puede tener múltiples líneas con diferente SKU)
         newRows.forEach(function(r){
-          if(!r[F.FOLIO]){
+          var key=(r[F.FOLIO]||'')+'|'+(r[F.CLAVE]||'');
+          if(key==='|'){
             ALL.push(r); added++;
-          } else if(!existingFolios[r[F.FOLIO]]){
+          } else if(!existingFolios[key]){
             ALL.push(r);
-            existingFolios[r[F.FOLIO]]=true;
+            existingFolios[key]=true;
             added++;
           } else {
             duplicates++;
