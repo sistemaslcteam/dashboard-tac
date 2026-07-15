@@ -345,7 +345,7 @@ td:first-child .tc{padding-left:12px;}
   <div class="slabel">Indicadores Clave</div>
   <div class="krow">
     <div class="kpi k1"><div class="kico">💰</div><div class="kl">Venta Total (USD)</div><div class="kv" id="kv1" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">$0</div><div class="ksub" id="ks1">—</div></div>
-    <div class="kpi k2"><div class="kico">📈</div><div class="kl">Utilidad Operativa</div><div class="kv" id="kv2" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">$0</div><div class="ksub" id="ks2">—</div></div>
+    <div class="kpi k2"><div class="kico">📈</div><div class="kl">Margen Operativo</div><div class="kv" id="kv2" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">0%</div><div class="ksub" id="ks2">$0 utilidad</div></div>
     <div class="kpi k3"><div class="kico">📦</div><div class="kl">Unidades Vendidas</div><div class="kv" id="kv3" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">0</div><div class="ksub" id="ks3">—</div></div>
     <div class="kpi k4"><div class="kico">👥</div><div class="kl">Clientes Únicos</div><div class="kv" id="kv4" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">0</div><div class="ksub" id="ks4">—</div></div>
     <div class="kpi k5"><div class="kico">🏆</div><div class="kl">Mejor Mes</div><div class="kv" id="kv5" style="font-size:1rem">—</div><div class="ksub" id="ks5">—</div></div>
@@ -645,6 +645,10 @@ async function decompress(b64){
 // ── HELPERS ──
 function fmtM(n){n=n||0;var a=Math.abs(n);if(a>=1e6)return'$'+(n/1e6).toFixed(2)+'M';if(a>=1e3)return'$'+(n/1e3).toFixed(1)+'K';return'$'+Math.round(n).toLocaleString('es-MX');}
 function fmtN(n){n=n||0;if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return Math.round(n).toLocaleString('es-MX');}
+// Formatos COMPLETOS sin abreviar (para tablas y tarjetas)
+function fmtC(n){n=n||0;return'$'+Math.round(n).toLocaleString('es-MX');}
+function fmtCd(n){n=n||0;return'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtU(n){n=n||0;return Math.round(n).toLocaleString('es-MX');}
 function groupBy(data,kFn,vFn){
   var m={};
   data.forEach(function(r){var k=kFn(r);if(k==null||k===''||k==='null')return;m[k]=(m[k]||0)+vFn(r);});
@@ -898,8 +902,9 @@ function updateKPIs(){
   }
   document.getElementById('kv1').textContent=fmtKpi(venta,true);
   document.getElementById('ks1').textContent=filteredData.length.toLocaleString()+' transacciones';
-  document.getElementById('kv2').textContent=fmtKpi(util,true);
-  document.getElementById('ks2').textContent=(venta>0?((util/venta)*100).toFixed(1):0)+'% margen';
+  var margenPct = venta>0?((util/venta)*100).toFixed(1):0;
+  document.getElementById('kv2').textContent=margenPct+'%';
+  document.getElementById('ks2').textContent=fmtC(util)+' utilidad';
   document.getElementById('kv3').textContent=Math.round(cant).toLocaleString('es-MX');
   document.getElementById('ks3').textContent='unidades vendidas';
   document.getElementById('kv4').textContent=clientes.toLocaleString('es-MX');
@@ -1197,7 +1202,7 @@ function renderTable(){
     html+='<tr>'+TCOLS.map(function(ci){
       var v=row[ci];
       if(v===null||v===undefined||v==='')return'<td><div class="tc" style="color:var(--gy3)">—</div></td>';
-      if(ci===F.VENTA||ci===F.UTIL)return'<td><div class="tc money">'+fmtM(v)+'</div></td>';
+      if(ci===F.VENTA||ci===F.UTIL)return'<td><div class="tc money">'+fmtC(v)+'</div></td>';
       if(ci===F.MARKUP)return'<td><div class="tc" style="color:var(--am);font-weight:600">'+Number(v).toFixed(1)+'%</div></td>';
       return'<td><div class="tc">'+v+'</div></td>';
     }).join('')+'</tr>';
@@ -1247,9 +1252,9 @@ function renderReporte(){
   html+='<div style="margin-left:auto;display:flex;gap:6px;"><button class="print-btn" onclick="window.print()">🖨 Imprimir</button><button class="print-btn" style="background:var(--gd)" onclick="exportReporteCSV()">⬇ CSV</button></div>';
   html+='</div>';
   html+='<div class="rpt-sum">';
-  html+='<div class="rpt-kpi"><div class="rl">Venta Total USD</div><div class="rv">'+fmtM(totalVenta)+'</div></div>';
-  html+='<div class="rpt-kpi" style="background:var(--gd)"><div class="rl">Utilidad Operativa</div><div class="rv">'+fmtM(totalUtil)+' ('+pctMargen+'%)</div></div>';
-  html+='<div class="rpt-kpi" style="background:#b45309"><div class="rl">Unidades</div><div class="rv">'+fmtN(totalCant)+'</div></div>';
+  html+='<div class="rpt-kpi"><div class="rl">Venta Total USD</div><div class="rv">'+fmtC(totalVenta)+'</div></div>';
+  html+='<div class="rpt-kpi" style="background:var(--gd)"><div class="rl">Utilidad Operativa</div><div class="rv">'+fmtC(totalUtil)+' ('+pctMargen+'%)</div></div>';
+  html+='<div class="rpt-kpi" style="background:#b45309"><div class="rl">Unidades</div><div class="rv">'+fmtU(totalCant)+'</div></div>';
   html+='<div class="rpt-kpi" style="background:var(--bl)"><div class="rl">SKUs distintos</div><div class="rv">'+skuRows.length+'</div></div>';
   html+='</div>';
   html+='<div class="tw"><div class="tbar"><div><div style="font-size:12px;font-weight:700;color:var(--nv)">Detalle por Producto</div></div></div>';
@@ -1260,17 +1265,17 @@ function renderReporte(){
     html+='<td><div class="tc" style="font-weight:600;color:var(--nv)">'+s.clave+'</div></td>';
     html+='<td><div class="tc" style="color:var(--tx2)">'+s.familia+'</div></td>';
     html+='<td><div class="tc">'+s.trans+'</div></td>';
-    html+='<td><div class="tc">'+fmtN(s.cant)+'</div></td>';
-    html+='<td><div class="tc money">'+fmtM(s.venta)+'</div></td>';
-    html+='<td><div class="tc money">'+fmtM(s.util)+'</div></td>';
+    html+='<td><div class="tc">'+fmtU(s.cant)+'</div></td>';
+    html+='<td><div class="tc money">'+fmtC(s.venta)+'</div></td>';
+    html+='<td><div class="tc money">'+fmtC(s.util)+'</div></td>';
     html+='<td><div class="tc" style="color:var(--am);font-weight:600">'+mg+'%</div></td>';
     html+='</tr>';
   });
   html+='<tr style="background:var(--gbg);font-weight:700">';
   html+='<td><div class="tc" style="font-weight:700;color:var(--nv)">TOTAL</div></td><td></td><td><div class="tc">'+data.length+'</div></td>';
-  html+='<td><div class="tc">'+fmtN(totalCant)+'</div></td>';
-  html+='<td><div class="tc money" style="font-size:13px">'+fmtM(totalVenta)+'</div></td>';
-  html+='<td><div class="tc money" style="font-size:13px">'+fmtM(totalUtil)+'</div></td>';
+  html+='<td><div class="tc">'+fmtU(totalCant)+'</div></td>';
+  html+='<td><div class="tc money" style="font-size:13px">'+fmtC(totalVenta)+'</div></td>';
+  html+='<td><div class="tc money" style="font-size:13px">'+fmtC(totalUtil)+'</div></td>';
   html+='<td><div class="tc" style="color:var(--am);font-weight:700">'+pctMargen+'%</div></td>';
   html+='</tr>';
   html+='</tbody></table></div></div></div>';
@@ -1312,8 +1317,8 @@ function renderRelaciones(){
   data.forEach(function(r){
     html+='<tr><td><div class="tc" style="font-weight:600;color:var(--nv)">'+r[0]+'</div></td>';
     html+='<td><div class="tc">'+r[1]+'</div></td>';
-    html+='<td><div class="tc money">'+fmtM(r[2])+'</div></td>';
-    html+='<td><div class="tc">'+fmtN(r[3])+'</div></td>';
+    html+='<td><div class="tc money">'+fmtC(r[2])+'</div></td>';
+    html+='<td><div class="tc">'+fmtU(r[3])+'</div></td>';
     html+='<td><div class="tc">'+r[4]+'</div></td></tr>';
   });
   html+='</tbody></table>';
@@ -1330,7 +1335,7 @@ function renderOC(){
     return true;
   });
   var totalV=data.reduce(function(s,r){return s+r[7];},0);
-  document.getElementById('oc-sub').textContent=data.length.toLocaleString()+' líneas · Total: '+fmtM(totalV);
+  document.getElementById('oc-sub').textContent=data.length.toLocaleString()+' líneas · Total: '+fmtC(totalV);
   if(!data.length){document.getElementById('oc-container').innerHTML='<div class="em">Sin órdenes de compra</div>';return;}
   var html='<table><thead><tr><th>Folio</th><th>OC</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>SKU</th><th>Cantidad</th><th>Venta USD</th></tr></thead><tbody>';
   data.slice(0,500).forEach(function(r){
@@ -1342,7 +1347,7 @@ function renderOC(){
     html+='<td><div class="tc">'+r[3]+'</div></td>';
     html+='<td><div class="tc" style="font-size:10px;color:var(--tx2)">'+r[5]+'</div></td>';
     html+='<td><div class="tc">'+r[6]+'</div></td>';
-    html+='<td><div class="tc money">'+fmtM(r[7])+'</div></td>';
+    html+='<td><div class="tc money">'+fmtC(r[7])+'</div></td>';
     html+='</tr>';
   });
   html+='</tbody></table>';
@@ -1829,7 +1834,7 @@ function renderVendedores(){
   var vList=Object.entries(vendors).sort(function(a,b){return b[1].venta-a[1].venta;});
   var totalVenta=vList.reduce(function(s,e){return s+e[1].venta;},0);
 
-  document.getElementById('vd-info').textContent=data.length.toLocaleString()+' registros · '+fmtM(totalVenta)+' total';
+  document.getElementById('vd-info').textContent=data.length.toLocaleString()+' registros · '+fmtC(totalVenta)+' total';
 
   // ── RANKING CARDS ──
   var RANK_COLORS=['#f59e0b','#94a3b8','#b45309']; // oro, plata, bronce
@@ -1846,7 +1851,7 @@ function renderVendedores(){
       +'<div style="font-size:28px;">'+(RANK_ICONS[i]||'🏷')+'</div>'
       +'<div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--nv)">'+name+'</div>'
       +'<div style="font-size:10px;color:var(--tx2)">Posición #'+(i+1)+' · '+pct+'% del total</div></div>'
-      +'<div style="text-align:right"><div style="font-size:1.3rem;font-weight:700;color:'+color+'">'+fmtM(d.venta)+'</div>'
+      +'<div style="text-align:right"><div style="font-size:1.3rem;font-weight:700;color:'+color+'">'+fmtC(d.venta)+'</div>'
       +'<div style="font-size:10px;color:var(--tx2)">en ventas</div></div>'
       +'</div>'
       // Progress bar
@@ -1854,10 +1859,10 @@ function renderVendedores(){
       +'<div style="width:'+pct+'%;background:'+color+';height:6px;border-radius:99px;transition:.5s;"></div></div>'
       // KPI row
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">'
-      +kpiMini('💰','Utilidad',fmtM(d.util))
+      +kpiMini('💰','Utilidad',fmtC(d.util))
       +kpiMini('📊','Margen',margen+'%')
-      +kpiMini('👥','Clientes',fmtN(d.clientes.size))
-      +kpiMini('🔁','Trans.',fmtN(d.trans))
+      +kpiMini('👥','Clientes',fmtU(d.clientes.size))
+      +kpiMini('🔁','Trans.',fmtU(d.trans))
       +'</div>'
       // Top clientes
       +'<div style="margin-bottom:10px;">'
@@ -1866,7 +1871,7 @@ function renderVendedores(){
         var cpct=d.venta>0?((c[1]/d.venta)*100).toFixed(0):0;
         return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'
           +'<div style="font-size:11px;flex:1;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+c[0].substring(0,30)+'</div>'
-          +'<div style="font-size:11px;font-weight:600;color:var(--gd);white-space:nowrap;">'+fmtM(c[1])+'</div>'
+          +'<div style="font-size:11px;font-weight:600;color:var(--gd);white-space:nowrap;">'+fmtC(c[1])+'</div>'
           +'<div style="width:50px;background:var(--gy2);border-radius:99px;height:4px;">'
           +'<div style="width:'+cpct+'%;background:'+color+';height:4px;border-radius:99px;"></div></div>'
           +'</div>';
@@ -1877,7 +1882,7 @@ function renderVendedores(){
       +'<div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Top Familias SKU</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
       +topFam.map(function(f){
-        return '<span style="background:var(--gy);border:1px solid var(--gy2);border-radius:5px;padding:2px 8px;font-size:10px;font-weight:600;color:var(--nv)">'+f[0]+' '+fmtM(f[1])+'</span>';
+        return '<span style="background:var(--gy);border:1px solid var(--gy2);border-radius:5px;padding:2px 8px;font-size:10px;font-weight:600;color:var(--nv)">'+f[0]+' '+fmtC(f[1])+'</span>';
       }).join('')
       +'</div></div>'
       +'</div>';
@@ -1972,7 +1977,7 @@ function renderVdDetail(vList){
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'
       +'<div style="font-size:14px;font-weight:700;color:var(--nv)">'+name+'</div>'
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;">'
-      +['💰 Venta: '+fmtM(d.venta),'📈 Utilidad: '+fmtM(d.util)+'  ('+margen+'%)','📦 Unidades: '+fmtN(d.cant),'👥 Clientes: '+d.clientes.size,'🔁 Transacciones: '+d.trans]
+      +['💰 Venta: '+fmtC(d.venta),'📈 Utilidad: '+fmtC(d.util)+'  ('+margen+'%)','📦 Unidades: '+fmtU(d.cant),'👥 Clientes: '+d.clientes.size,'🔁 Transacciones: '+d.trans]
         .map(function(t){return '<span style="background:var(--gy);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:var(--nv)">'+t+'</span>';}).join('')
       +'</div></div>'
       // Charts + tabla
@@ -1991,7 +1996,7 @@ function renderVdDetail(vList){
         return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--gy2);">'
           +'<div style="font-size:10px;font-weight:700;color:'+color+';width:16px;">'+(ci+1)+'</div>'
           +'<div style="flex:1;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+c[0].substring(0,24)+'</div>'
-          +'<div style="font-size:10px;font-weight:600;color:var(--gd);white-space:nowrap;">'+fmtM(c[1])+'</div>'
+          +'<div style="font-size:10px;font-weight:600;color:var(--gd);white-space:nowrap;">'+fmtC(c[1])+'</div>'
           +'</div>';
       }).join('')
       +'</div></div>'
