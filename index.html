@@ -300,6 +300,7 @@ td:first-child .tc{padding-left:12px;}
   <button class="tab" onclick="showTab('reporte',this)">📄 Reporte por Cliente</button>
   <button class="tab" onclick="showTab('relaciones',this)">👥 Vendedor–Cliente</button>
   <button class="tab" onclick="showTab('vendedores',this)">🏆 Dashboard Vendedores</button>
+  <button class="tab" onclick="showTab('comision',this)">💵 Comisión JRZ</button>
   <button class="tab" onclick="showTab('ordenes',this)">📋 Órdenes de Compra</button>
 </div>
 
@@ -476,6 +477,119 @@ td:first-child .tc{padding-left:12px;}
   </div>
 </div>
 </div>
+
+
+<!-- ═══════════ PAGE: COMISIÓN JRZ ═══════════ -->
+<div class="page" id="page-comision">
+<div class="main">
+
+  <!-- INPUTS -->
+  <div class="cc" style="margin-bottom:12px;">
+    <div style="font-size:13px;font-weight:700;color:var(--nv);margin-bottom:14px;">💵 Calculadora de Comisión JRZ</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;" id="cm-inputs-grid">
+
+      <!-- Ventas y costos -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">📊 Base de Cálculo</div>
+        <div style="background:var(--gy);border-radius:8px;padding:12px;margin-bottom:8px;">
+          <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Fuente de datos</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <label style="font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;">
+              <input type="radio" name="cm-source" value="auto" checked onchange="renderComision()" style="accent-color:var(--nv);">
+              <span>Datos del dashboard (automático)</span>
+            </label>
+            <label style="font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;">
+              <input type="radio" name="cm-source" value="manual" onchange="renderComision()" style="accent-color:var(--nv);">
+              <span>Ingresar manualmente</span>
+            </label>
+          </div>
+        </div>
+        <!-- Filtros mes/año para modo auto -->
+        <div id="cm-auto-filters" style="display:flex;gap:8px;margin-bottom:8px;">
+          <select class="fsel" id="cm-year" onchange="renderComision()" style="min-width:100px;"><option value="">Todos los años</option></select>
+          <select class="fsel" id="cm-mes" onchange="renderComision()" style="min-width:130px;"><option value="">Todos los meses</option></select>
+        </div>
+        <!-- Inputs manuales -->
+        <div id="cm-manual-inputs" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Venta Total (USD)</div>
+              <input id="cm-venta-manual" type="number" value="0" onchange="renderComision()"
+                style="width:100%;padding:6px 9px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Costo Total (USD)</div>
+              <input id="cm-costo-manual" type="number" value="0" onchange="renderComision()"
+                style="width:100%;padding:6px 9px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
+            </div>
+          </div>
+        </div>
+        <!-- Resumen automático -->
+        <div id="cm-auto-summary" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+      </div>
+
+      <!-- Tipo de cambio y proyección -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">💱 Tipo de Cambio</div>
+        <div style="background:var(--gy);border-radius:8px;padding:12px;margin-bottom:8px;">
+          <div style="font-size:10px;color:var(--tx2);margin-bottom:5px;">TC (MXP/USD)</div>
+          <input id="cm-tc" type="number" value="17.38" step="0.001" oninput="renderComision()"
+            style="width:100%;padding:7px 9px;border:1.5px solid var(--nv);border-radius:7px;font-size:14px;font-weight:700;font-family:'Inter',sans-serif;outline:none;color:var(--nv);">
+          <div style="font-size:9px;color:var(--tx2);margin-top:4px;">Ingresar el tipo de cambio del período</div>
+        </div>
+        <div style="background:var(--gy);border-radius:8px;padding:12px;">
+          <div style="font-size:10px;font-weight:700;color:var(--tx2);margin-bottom:8px;">📅 Proyección al cierre del mes</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <div>
+              <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Días transcurridos</div>
+              <input id="cm-dias-trans" type="number" value="22" min="1" max="31" oninput="renderComision()"
+                style="width:100%;padding:6px 9px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Días hábiles del mes</div>
+              <input id="cm-dias-mes" type="number" value="22" min="1" max="31" oninput="renderComision()"
+                style="width:100%;padding:6px 9px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;outline:none;">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Abonado -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">💰 Abono y Pendiente</div>
+        <div style="background:var(--gy);border-radius:8px;padding:12px;">
+          <div style="font-size:10px;color:var(--tx2);margin-bottom:3px;">Abonado con IVA (MXP)</div>
+          <input id="cm-abonado" type="number" value="0" step="0.01" oninput="renderComision()"
+            style="width:100%;padding:7px 9px;border:1.5px solid var(--gy2);border-radius:7px;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;outline:none;color:var(--gd);margin-bottom:8px;">
+          <div style="font-size:9px;color:var(--tx2);">Total de facturas pagadas en el período</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTADOS -->
+  <div id="cm-resultados"></div>
+
+  <!-- TABLA EQUIVALENCIAS -->
+  <div class="cc" style="margin-top:12px;">
+    <div class="cch"><div><div class="cct">Tabla de Equivalencias</div><div class="ccs">Relación % Util. Bruta → % a Comisionar</div></div></div>
+    <div style="overflow-x:auto;">
+      <table style="width:auto;min-width:0;">
+        <thead>
+          <tr>
+            <th style="min-width:140px;">% Util. Bruta</th>
+            <th style="min-width:160px;">% a Comisionar</th>
+            <th style="min-width:140px;">Incremento x 1%</th>
+          </tr>
+        </thead>
+        <tbody id="cm-tabla-eq"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+<!-- /PAGE COMISIÓN -->
 
 <!-- ═══════════ PAGE: ÓRDENES ═══════════ -->
 <div class="page" id="page-ordenes">
@@ -1958,6 +2072,222 @@ setInterval(async function(){
     }
   }catch(e){ /* silencioso */ }
 }, 5 * 60 * 1000); // cada 5 minutos
+
+
+// ══════════════════════════════════════════
+// COMISIÓN JRZ
+// ══════════════════════════════════════════
+
+// Tabla de equivalencias: [%UtilBruta, %Comision]
+var TABLA_EQ=[
+  [0.30, 0.090909],
+  [0.31, 0.093939],
+  [0.32, 0.096970],
+  [0.33, 0.100000],
+  [0.34, 0.103030],
+  [0.35, 0.106061],
+  [0.36, 0.109091],
+  [0.37, 0.112121],
+  [0.38, 0.115152],
+  [0.39, 0.118182],
+  [0.40, 0.121212],
+  [0.41, 0.124242],
+  [0.42, 0.127273],
+  [0.43, 0.130303],
+  [0.44, 0.133333],
+  [0.45, 0.136364],
+  [0.46, 0.139394],
+  [0.47, 0.142424],
+  [0.48, 0.145455],
+  [0.49, 0.148485],
+  [0.50, 0.151515]
+];
+
+function getPctComision(utilBrutaPct){
+  // Interpolación lineal entre puntos de la tabla
+  // El step es constante: cada 1% util → 0.3030% comision
+  if(utilBrutaPct <= 0) return 0;
+  // Encontrar breakpoints
+  for(var i=0;i<TABLA_EQ.length-1;i++){
+    var lo=TABLA_EQ[i], hi=TABLA_EQ[i+1];
+    if(utilBrutaPct >= lo[0] && utilBrutaPct <= hi[0]){
+      var t=(utilBrutaPct-lo[0])/(hi[0]-lo[0]);
+      return lo[1]+t*(hi[1]-lo[1]);
+    }
+  }
+  // Extrapolación lineal con el step constante (0.3030% por cada 1%)
+  var step=0.003030;
+  if(utilBrutaPct < TABLA_EQ[0][0]){
+    return TABLA_EQ[0][1] - (TABLA_EQ[0][0]-utilBrutaPct)/0.01 * step;
+  }
+  var last=TABLA_EQ[TABLA_EQ.length-1];
+  return last[1] + (utilBrutaPct-last[0])/0.01 * step;
+}
+
+function fmtFull(n){
+  // Número sin abreviar
+  n=n||0;
+  return '$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtPct(n){return(n*100).toFixed(2)+'%';}
+
+function populateCmFilters(){
+  var fyEl=document.getElementById('cm-year'), fyCur=fyEl.value;
+  fyEl.innerHTML='<option value="">Todos los años</option>';
+  var years=[...new Set(ALL.map(function(r){return r[F.AÑO];}))].filter(Boolean).sort(function(a,b){return a-b;});
+  years.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;fyEl.appendChild(o);});
+  if(fyCur)fyEl.value=fyCur;
+  var fmEl=document.getElementById('cm-mes'), fmCur=fmEl.value;
+  fmEl.innerHTML='<option value="">Todos los meses</option>';
+  var meses=[...new Set(ALL.map(function(r){return r[F.MES];}))].filter(Boolean).sort(function(a,b){return MONTHS.indexOf(a)-MONTHS.indexOf(b);});
+  meses.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;fmEl.appendChild(o);});
+  if(fmCur)fmEl.value=fmCur;
+}
+
+function renderComision(){
+  if(!document.getElementById('cm-inputs-grid')) return;
+  populateCmFilters();
+
+  var source=document.querySelector('input[name="cm-source"]:checked');
+  var mode=source?source.value:'auto';
+  var autoDiv=document.getElementById('cm-auto-filters');
+  var manDiv=document.getElementById('cm-manual-inputs');
+  var autoSum=document.getElementById('cm-auto-summary');
+  if(autoDiv) autoDiv.style.display=mode==='auto'?'flex':'none';
+  if(manDiv)  manDiv.style.display=mode==='manual'?'grid':'none';
+
+  var venta=0, costo=0;
+  if(mode==='auto'){
+    var yr=document.getElementById('cm-year').value;
+    var mes=document.getElementById('cm-mes').value;
+    // Solo FP para cálculo de comisión
+    var data=ALL.filter(function(r){
+      if(yr&&r[F.AÑO]!==yr)return false;
+      if(mes&&r[F.MES]!==mes)return false;
+      return true;
+    });
+    venta=data.reduce(function(s,r){return s+r[F.VENTA];},0);
+    costo=data.reduce(function(s,r){return s+r[F.COSTO];},0);
+    // Show summary
+    if(autoSum) autoSum.innerHTML=
+      '<div style="background:var(--gy);border-radius:7px;padding:9px;"><div style="font-size:9px;color:var(--tx2);margin-bottom:2px;">VENTA TOTAL</div><div style="font-size:13px;font-weight:700;color:var(--nv)">'+fmtFull(venta)+'</div></div>'+
+      '<div style="background:var(--gy);border-radius:7px;padding:9px;"><div style="font-size:9px;color:var(--tx2);margin-bottom:2px;">COSTO TOTAL</div><div style="font-size:13px;font-weight:700;color:var(--rd)">'+fmtFull(costo)+'</div></div>';
+  } else {
+    venta=parseFloat(document.getElementById('cm-venta-manual').value)||0;
+    costo=parseFloat(document.getElementById('cm-costo-manual').value)||0;
+    if(autoSum) autoSum.innerHTML='';
+  }
+
+  var tc=parseFloat(document.getElementById('cm-tc').value)||17.38;
+  var diasTrans=parseFloat(document.getElementById('cm-dias-trans').value)||22;
+  var diasMes=parseFloat(document.getElementById('cm-dias-mes').value)||22;
+  var abonado=parseFloat(document.getElementById('cm-abonado').value)||0;
+
+  // ── CÁLCULOS ──
+  var utilBruta = venta - costo;
+  var pctUtilBruta = venta > 0 ? utilBruta/venta : 0;
+  var pctComision = getPctComision(pctUtilBruta);
+  var comisionJRZ = venta * pctComision;
+  var comisionMXP = comisionJRZ * tc;
+  var comisionMXPiva = comisionMXP * 1.08;  // +8% IVA
+  var pendiente = comisionMXPiva - abonado;
+
+  // ── PROYECCIÓN ──
+  var factor = diasMes > 0 ? diasMes/diasTrans : 1;
+  var ventaProy    = venta * factor;
+  var costoProy    = costo * factor;
+  var utilProy     = ventaProy - costoProy;
+  var pctUtilProy  = ventaProy > 0 ? utilProy/ventaProy : pctUtilBruta;
+  var pctComProy   = getPctComision(pctUtilProy);
+  var comisionProy = ventaProy * pctComProy;
+  var comMXPProy   = comisionProy * tc;
+  var comMXPivaProy= comMXPProy * 1.08;
+  var pendProy     = comMXPivaProy - abonado;
+
+  // ── RENDER RESULTADOS ──
+  function kpiBox(label, val, color, sub){
+    return '<div style="background:#fff;border:1px solid var(--gy2);border-radius:10px;padding:13px 14px;border-top:3px solid '+(color||'var(--nv)')+';">'
+      +'<div style="font-size:9px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">'+label+'</div>'
+      +'<div style="font-size:1.15rem;font-weight:700;color:'+(color||'var(--nv)')+'">'+val+'</div>'
+      +(sub?'<div style="font-size:10px;color:var(--tx2);margin-top:3px;">'+sub+'</div>':'')
+      +'</div>';
+  }
+
+  var html='';
+
+  // Sección actual
+  html+='<div class="slabel">Comisión Actual</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">';
+  html+=kpiBox('Venta Período (USD)', fmtFull(venta), 'var(--nv)');
+  html+=kpiBox('Costo Período (USD)', fmtFull(costo), 'var(--rd)');
+  html+=kpiBox('Utilidad Bruta (USD)', fmtFull(utilBruta), 'var(--gd)', fmtPct(pctUtilBruta)+' de util. bruta');
+  html+=kpiBox('% a Comisionar', fmtPct(pctComision), '#7c3aed', 'Según tabla de equivalencias');
+  html+='</div>';
+
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">';
+  html+=kpiBox('Comisión JRZ (USD)', fmtFull(comisionJRZ), 'var(--am)', 'Venta × '+fmtPct(pctComision));
+  html+=kpiBox('Comisión en MXP', fmtFull(comisionMXP), 'var(--am)', 'TC: '+tc.toFixed(4));
+  html+=kpiBox('Comisión + IVA 8% (MXP)', fmtFull(comisionMXPiva), '#b45309');
+  html+=kpiBox('Abonado (MXP)', fmtFull(abonado), 'var(--gd)');
+  html+='</div>';
+
+  // Total a facturar
+  var pColor = pendiente > 0 ? 'var(--rd)' : 'var(--gd)';
+  html+='<div style="background:#fff;border:2px solid '+(pendiente>0?'var(--rd)':'var(--gd)')+';border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">';
+  html+='<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--tx2);">'+(pendiente>0?'💵 Total por Facturar a TAC (con IVA)':'✅ Saldo a Favor')+'</div>';
+  html+='<div style="font-size:1.6rem;font-weight:800;color:'+pColor+'">'+fmtFull(Math.abs(pendiente))+' MXP</div></div>';
+  html+='<div style="text-align:right;font-size:11px;color:var(--tx2);">'+
+    '<div>Comisión total: '+fmtFull(comisionMXPiva)+' MXP</div>'+
+    '<div>Abonado: '+fmtFull(abonado)+' MXP</div></div>';
+  html+='</div>';
+
+  // Sección proyección
+  html+='<div class="slabel">Proyección al Cierre del Mes</div>';
+  html+='<div style="background:#fff;border:1px solid var(--gy2);border-radius:10px;padding:14px;margin-bottom:14px;">';
+  html+='<div style="font-size:11px;color:var(--tx2);margin-bottom:10px;">Factor de proyección: '+diasMes+' días hábiles totales ÷ '+diasTrans+' transcurridos = <strong>×'+factor.toFixed(2)+'</strong></div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">';
+  html+=kpiBox('Venta Proy. (USD)', fmtFull(ventaProy), 'var(--nv)');
+  html+=kpiBox('% Util. Bruta Proy.', fmtPct(pctUtilProy), '#7c3aed');
+  html+=kpiBox('% Comisión Proy.', fmtPct(pctComProy), '#7c3aed');
+  html+=kpiBox('Comisión Proy. + IVA', fmtFull(comMXPivaProy), 'var(--am)');
+  html+=kpiBox(pendProy>0?'Pendiente Proyectado':'Saldo Proyectado', fmtFull(Math.abs(pendProy))+' MXP', pendProy>0?'var(--rd)':'var(--gd)');
+  html+='</div></div>';
+
+  // Desglose completo
+  html+='<div class="cc" style="margin-bottom:12px;">';
+  html+='<div class="cch"><div><div class="cct">Desglose Completo</div></div></div>';
+  html+='<table style="width:600px;"><tbody>';
+  var rows=[
+    ['Venta Total (USD)', fmtFull(venta), fmtFull(ventaProy)],
+    ['Costo Total (USD)', fmtFull(costo), fmtFull(costoProy)],
+    ['Utilidad Bruta (USD)', fmtFull(utilBruta), fmtFull(utilProy)],
+    ['% de Utilidad Bruta', fmtPct(pctUtilBruta), fmtPct(pctUtilProy)],
+    ['% a Comisionar', fmtPct(pctComision), fmtPct(pctComProy)],
+    ['Comisión JRZ (USD)', fmtFull(comisionJRZ), fmtFull(comisionProy)],
+    ['TC (MXP/USD)', tc.toFixed(4), tc.toFixed(4)],
+    ['Comisión en MXP', fmtFull(comisionMXP), fmtFull(comMXPProy)],
+    ['Comisión + IVA 8% (MXP)', fmtFull(comisionMXPiva), fmtFull(comMXPivaProy)],
+    ['Abonado con IVA (MXP)', fmtFull(abonado), fmtFull(abonado)],
+    ['TOTAL POR FACTURAR A TAC (MXP)', '<strong style="color:'+pColor+'">'+fmtFull(pendiente)+'</strong>', '<strong style="color:'+(pendProy>0?'var(--rd)':'var(--gd)')+'">'+fmtFull(pendProy)+'</strong>'],
+  ];
+  html+='<tr><th style="background:var(--nv);padding:7px 10px;text-align:left;width:200px;">Concepto</th><th style="background:var(--nv);padding:7px 10px;text-align:right;">Real</th><th style="background:var(--nv);padding:7px 10px;text-align:right;">Proyectado</th></tr>';
+  rows.forEach(function(r,i){
+    var bg=i===rows.length-1?'background:rgba(46,204,113,.08);font-weight:700;':'';
+    html+='<tr style="border-bottom:1px solid var(--gy2);'+bg+'"><td style="padding:7px 10px;font-size:11px;color:var(--tx);">'+r[0]+'</td><td style="padding:7px 10px;font-size:11px;text-align:right;">'+r[1]+'</td><td style="padding:7px 10px;font-size:11px;text-align:right;color:var(--tx2);">'+r[2]+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+
+  document.getElementById('cm-resultados').innerHTML=html;
+
+  // Tabla de equivalencias
+  var tbHtml='';
+  TABLA_EQ.forEach(function(row){
+    var isActive=pctUtilBruta>=row[0]-0.005&&pctUtilBruta<row[0]+0.01;
+    var bg=isActive?'background:rgba(0,212,100,.12);font-weight:700;':'';
+    tbHtml+='<tr style="border-bottom:1px solid var(--gy2);'+bg+'"><td><div class="tc">'+fmtPct(row[0])+'</div></td><td><div class="tc" style="color:var(--gd);">'+fmtPct(row[1])+'</div></td><td><div class="tc" style="color:var(--tx2);">+0.3030% por cada 1%</div></td></tr>';
+  });
+  document.getElementById('cm-tabla-eq').innerHTML=tbHtml;
+}
 
 function showToast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3500);}
 
