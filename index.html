@@ -1382,9 +1382,29 @@ function rowsToVentas(rows){
   return rows.map(function(r){
     var rawF=r['Fecha']||r['FECHA']||r['fecha']||'';
     var d=null;
-    if(rawF instanceof Date)d=rawF;
-    else if(typeof rawF==='number'&&rawF>10000)d=excelDateToJS(rawF);
-    else{var p=String(rawF).split('/');if(p.length===3)d=new Date(p[2]+'-'+p[1]+'-'+p[0]);else d=new Date(String(rawF).substring(0,10));}
+    if(rawF instanceof Date){
+      // Date object from SheetJS — already correct
+      d=rawF;
+    } else if(typeof rawF==='number'&&rawF>10000){
+      d=excelDateToJS(rawF);
+    } else {
+      // Parse string — ALWAYS as local time to avoid UTC timezone offset bug
+      // '2026-07-15 09:29:17.000000' or '2026-07-15' or '15/07/2026'
+      var s=String(rawF).trim();
+      var p=s.split('/');
+      if(p.length===3){
+        // DD/MM/YYYY format
+        d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+      } else {
+        // YYYY-MM-DD or YYYY-MM-DD HH:MM:SS format — parse manually as local
+        var parts=s.substring(0,10).split('-');
+        if(parts.length===3){
+          d=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+        } else {
+          d=new Date(s);
+        }
+      }
+    }
     var ano=d&&!isNaN(d)?String(d.getFullYear()):'';
     var mes=d&&!isNaN(d)?MONTHS[d.getMonth()]:'';
     var nmes=d&&!isNaN(d)?d.getMonth()+1:0;
