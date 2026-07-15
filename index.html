@@ -214,16 +214,22 @@ td:first-child .tc{padding-left:12px;}
   <div class="md" onclick="event.stopPropagation()">
     <h3>📊 Actualizar Base de Ventas</h3>
     <p>Sube tu archivo <strong>Excel o CSV</strong>. Los registros nuevos se acumulan automáticamente — los folios duplicados se omiten.</p>
-    <div style="background:var(--gy);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;gap:20px;align-items:center;">
-      <span style="font-size:11px;font-weight:700;color:var(--tx2);">MODO:</span>
-      <label style="font-size:12px;display:flex;align-items:center;gap=6px;cursor:pointer;gap:6px;">
-        <input type="radio" name="upload-mode" value="incremental" checked style="accent-color:var(--nv);width:14px;height:14px;">
-        <span><strong>Incremental</strong> — agrega registros nuevos</span>
-      </label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
-        <input type="radio" name="upload-mode" value="replace" style="accent-color:var(--rd);width:14px;height:14px;">
-        <span><strong>Reemplazar</strong> — borra y recarga todo</span>
-      </label>
+    <div style="background:var(--gy);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:8px;">MODO DE CARGA:</div>
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="radio" name="upload-mode" value="incremental" checked style="accent-color:var(--nv);width:14px;height:14px;">
+          <div><strong>Incremental</strong> — agrega registros nuevos (recomendado para acumular histórico)</div>
+        </label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="radio" name="upload-mode" value="replace_month" style="accent-color:var(--am);width:14px;height:14px;">
+          <div><strong>Reemplazar mes del archivo</strong> — actualiza solo el mes del archivo subido</div>
+        </label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="radio" name="upload-mode" value="replace" style="accent-color:var(--rd);width:14px;height:14px;">
+          <div><strong>Reemplazar todo</strong> — borra la base completa y recarga</div>
+        </label>
+      </div>
     </div>
     <div class="dz" id="dzVentas"><input type="file" id="fiVentas" accept=".xlsx,.xls,.csv"><div style="font-size:26px;margin-bottom:8px">📂</div><div style="font-size:11px;color:var(--tx2)">Clic o arrastra <strong>.xlsx / .csv</strong></div></div>
     <div class="ur" id="resVentas"></div>
@@ -1503,9 +1509,20 @@ document.addEventListener('DOMContentLoaded',function(){
         // Reemplazar todo
         ALL=newRows;
         added=newRows.length;
+      } else if(mode==='replace_month'){
+        // Reemplazar solo los meses que vienen en el archivo nuevo
+        var newMonths=new Set(newRows.map(function(r){return r[F.AÑO]+'|'+r[F.MES];}));
+        // Quitar de ALL los registros de esos meses
+        var antes=ALL.length;
+        ALL=ALL.filter(function(r){return !newMonths.has(r[F.AÑO]+'|'+r[F.MES]);});
+        var quitados=antes-ALL.length;
+        // Agregar todos los del archivo nuevo
+        ALL=ALL.concat(newRows);
+        added=newRows.length;
+        duplicates=quitados; // los que se reemplazaron
+        console.log('Reemplazó '+quitados+' registros de '+Array.from(newMonths).join(', ')+', agregó '+added+' nuevos');
       } else {
         // Incremental: agregar solo combinaciones Folio+Clave nuevas
-        // (un folio puede tener múltiples líneas con diferente SKU)
         newRows.forEach(function(r){
           var key=(r[F.FOLIO]||'')+'|'+(r[F.CLAVE]||'');
           if(key==='|'){
@@ -1527,7 +1544,8 @@ document.addEventListener('DOMContentLoaded',function(){
       document.getElementById('hdr-sub').textContent='Datos: '+file.name+' · '+new Date().toLocaleTimeString('es-MX');
       res.className='ur ok';
       res.textContent='✓ +'+added+' nuevos | '+duplicates+' duplicados omitidos | Total: '+ALL.length.toLocaleString();
-      showToast('✅ +'+added+' registros nuevos agregados | Total: '+ALL.length.toLocaleString());
+      var modeLabel = mode==='replace'?'Base reemplazada':mode==='replace_month'?'Mes actualizado':'Incremental';
+      showToast('✅ ['+modeLabel+'] +'+added+' registros | Total acumulado: '+ALL.length.toLocaleString());
 
       syncToGitHub('ventas', ALL, file.name);
       syncToGitHub('oc', OC_DATA, file.name);
