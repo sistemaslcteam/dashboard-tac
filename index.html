@@ -344,6 +344,16 @@ td:first-child .tc{padding-left:12px;}
     <select class="fsel" id="f-cli"  onchange="applyFilters()"><option value="">Todos los clientes</option></select>
     <select class="fsel" id="f-fam"  onchange="applyFilters()"><option value="">Todas las familias</option></select>
     <span class="fsep"></span>
+    <span style="font-size:11px;font-weight:600;color:var(--tx2);">📅 Rango:</span>
+    <input type="date" id="f-fecha-ini" onchange="applyFilters()"
+      style="padding:5px 8px;border:1.5px solid var(--gy2);border-radius:7px;font-size:11px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;"
+      title="Fecha inicio">
+    <span style="font-size:11px;color:var(--tx2);">→</span>
+    <input type="date" id="f-fecha-fin" onchange="applyFilters()"
+      style="padding:5px 8px;border:1.5px solid var(--gy2);border-radius:7px;font-size:11px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;"
+      title="Fecha fin">
+    <button onclick="clearDateRange()" style="padding:4px 8px;border:1.5px solid var(--gy2);border-radius:7px;font-size:11px;background:#fff;cursor:pointer;color:var(--tx2);font-family:'Inter',sans-serif;" title="Limpiar rango">✕</button>
+    <span class="fsep"></span>
     <span class="finfo" id="finfo"></span>
   </div>
 
@@ -371,6 +381,18 @@ td:first-child .tc{padding-left:12px;}
       <div class="cch"><div><div class="cct">Top Clientes</div><div class="ccs">Clic para filtrar por cliente</div></div></div>
       <canvas id="doughnutChart"></canvas>
     </div>
+  </div>
+
+  <!-- DAILY CHART -->
+  <div class="cc" id="cc-daily" style="margin-bottom:12px;">
+    <div class="cch">
+      <div>
+        <div class="cct">Venta por Día (USD)</div>
+        <div class="ccs" id="daily-sub">Selecciona un rango de fechas para ver el detalle diario</div>
+      </div>
+      <span class="cbadge" id="badge-daily">—</span>
+    </div>
+    <canvas id="dailyChart" style="max-height:200px;"></canvas>
   </div>
 
   <!-- CHARTS ROW 2 -->
@@ -693,6 +715,12 @@ function renderActiveChips(){
   if(vens.length) chips.push({label:'Vendedor: '+(vens.length>2?vens.length+' sel.':vens.join(', ')),clear:function(){mselState.vend=[];buildMselList('vend',mselOptions.vend);applyFilters();}});
   if(cli) chips.push({label:'Cliente: '+cli.substring(0,20),clear:function(){document.getElementById('f-cli').value='';applyFilters();}});
   if(fam) chips.push({label:'Familia: '+fam,clear:function(){document.getElementById('f-fam').value='';applyFilters();}});
+  var fi=document.getElementById('f-fecha-ini').value;
+  var ff=document.getElementById('f-fecha-fin').value;
+  if(fi||ff){
+    var lbl='📅 '+(fi||'…')+' → '+(ff||'…');
+    chips.push({label:lbl,clear:function(){clearDateRange();}});
+  }
   if(clickFilters.mes) chips.push({label:'📅 '+clickFilters.mes,clear:function(){clickFilters.mes=null;applyFilters();}});
   if(clickFilters.cliente) chips.push({label:'👤 '+clickFilters.cliente.substring(0,18),clear:function(){clickFilters.cliente=null;applyFilters();}});
   if(clickFilters.vendedor) chips.push({label:'🏷 '+clickFilters.vendedor,clear:function(){clickFilters.vendedor=null;applyFilters();}});
@@ -797,6 +825,123 @@ function updateMselLabel(key){
   else{ lbl.textContent=n+' seleccionados'; btn.classList.add('active'); }
 }
 
+
+// ══════════════════════════════════════════
+// FILTRO POR RANGO DE FECHA + GRÁFICA DIARIA
+// ══════════════════════════════════════════
+
+// Convierte fecha DD/MM/YYYY a timestamp comparable
+function fechaToTs(ddmmyyyy){
+  if(!ddmmyyyy) return null;
+  var p=ddmmyyyy.split('/');
+  if(p.length!==3) return null;
+  return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0])).getTime();
+}
+
+// Convierte YYYY-MM-DD (input[type=date]) a timestamp
+function inputToTs(yyyymmdd){
+  if(!yyyymmdd) return null;
+  var p=yyyymmdd.split('-');
+  return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])).getTime();
+}
+
+function clearDateRange(){
+  document.getElementById('f-fecha-ini').value='';
+  document.getElementById('f-fecha-fin').value='';
+  applyFilters();
+}
+
+function drawDaily(){
+  destroyC('dailyChart');
+  var ctx=document.getElementById('dailyChart').getContext('2d');
+
+  // Solo mostrar si hay filtro de fecha o pocos datos
+  var ini=document.getElementById('f-fecha-ini').value;
+  var fin=document.getElementById('f-fecha-fin').value;
+  var hasFechaFilter = ini||fin;
+
+  // Agrupar por día
+  var byDay={};
+  filteredData.forEach(function(r){
+    var f=r[F.FECHA]; // DD/MM/YYYY
+    if(!f) return;
+    byDay[f]=(byDay[f]||0)+r[F.VENTA];
+  });
+
+  var days=Object.keys(byDay).sort(function(a,b){
+    return fechaToTs(a)-fechaToTs(b);
+  });
+
+  if(!days.length){
+    document.getElementById('daily-sub').textContent='Sin datos para mostrar';
+    document.getElementById('badge-daily').textContent='—';
+    noData('dailyChart');
+    return;
+  }
+
+  // Limitar a 90 días máximo para legibilidad
+  if(days.length>90 && !hasFechaFilter){
+    document.getElementById('daily-sub').textContent='Selecciona un rango de fechas para ver el detalle diario (máx. 90 días)';
+    document.getElementById('badge-daily').textContent=days.length+' días';
+    noData('dailyChart');
+    // Show hint on chart
+    var c=document.getElementById('dailyChart');
+    var x=c.getContext('2d');
+    x.clearRect(0,0,c.width,c.height);
+    x.fillStyle='#94a3b8';x.font='12px Inter';x.textAlign='center';
+    x.fillText('Aplica un filtro de fecha para ver ventas por día',c.width/2,60);
+    return;
+  }
+
+  var totalDiario=days.reduce(function(s,d){return s+byDay[d];},0);
+  var promDiario=totalDiario/days.length;
+  document.getElementById('daily-sub').textContent=days.length+' días | Promedio diario: '+fmtC(promDiario);
+  document.getElementById('badge-daily').textContent=fmtC(totalDiario);
+
+  // Color por vendedor si hay múltiples, sino color estático
+  var selVend=mselState.vend;
+  var ds=[];
+
+  if(selVend.length>=2){
+    // Una línea por vendedor
+    selVend.forEach(function(vend,i){
+      var byDayV={};
+      filteredData.filter(function(r){return r[F.VENDEDOR]===vend;}).forEach(function(r){
+        if(r[F.FECHA]) byDayV[r[F.FECHA]]=(byDayV[r[F.FECHA]]||0)+r[F.VENTA];
+      });
+      ds.push({label:vend,data:days.map(function(d){return byDayV[d]||0;}),
+        borderColor:COLORS[i%COLORS.length],backgroundColor:COLORS[i%COLORS.length]+'20',
+        tension:.3,fill:false,pointRadius:days.length>31?1:3,pointHoverRadius:5,borderWidth:1.5});
+    });
+    // Total
+    ds.push({label:'TOTAL',data:days.map(function(d){return byDay[d]||0;}),
+      borderColor:'#0d2a4a',backgroundColor:'#0d2a4a15',
+      tension:.3,fill:true,pointRadius:days.length>31?1:3,pointHoverRadius:5,borderWidth:2,borderDash:[4,3]});
+  } else {
+    ds=[{
+      label:'Venta Diaria',
+      data:days.map(function(d){return byDay[d]||0;}),
+      borderColor:'#0d2a4a',backgroundColor:'#0d2a4a18',
+      tension:.3,fill:true,
+      pointRadius:days.length>31?1:4,
+      pointHoverRadius:6,borderWidth:2,
+      pointBackgroundColor:'#2ecc71'
+    }];
+  }
+
+  var o=cO();
+  o.plugins.legend={display:selVend.length>=2,labels:{color:'#64748b',font:{family:'Inter',size:10},boxWidth:10}};
+  // Format x-axis labels: show day/month
+  var xLabels=days.map(function(d){
+    var p=d.split('/');
+    return p[0]+'/'+p[1]; // DD/MM
+  });
+
+  charts['dailyChart']=new Chart(ctx,{type:'line',
+    data:{labels:xLabels,datasets:ds},
+    options:o});
+}
+
 // ── FILTERS ──
 function populateFilters(){
   function fill(id,kFn,sortFn){
@@ -848,6 +993,12 @@ function applyFilters(){
   var vens=mselState.vend;
   var cli=document.getElementById('f-cli').value;
   var fam=document.getElementById('f-fam').value;
+  // Rango de fechas
+  var fechaIni=inputToTs(document.getElementById('f-fecha-ini').value);
+  var fechaFin=inputToTs(document.getElementById('f-fecha-fin').value);
+  // Adjust fechaFin to end of day
+  if(fechaFin) fechaFin+=86400000-1;
+
   filteredData=ALL.filter(function(r){
     if(yrs.length && yrs.indexOf(r[F.AÑO])<0)return false;
     if(mess.length && mess.indexOf(r[F.MES])<0)return false;
@@ -858,6 +1009,13 @@ function applyFilters(){
     if(clickFilters.cliente&&r[F.CLIENTE]!==clickFilters.cliente)return false;
     if(clickFilters.vendedor&&r[F.VENDEDOR]!==clickFilters.vendedor)return false;
     if(clickFilters.familia&&r[F.FAMILIA]!==clickFilters.familia)return false;
+    // Filtro por rango de fecha
+    if(fechaIni||fechaFin){
+      var ts=fechaToTs(r[F.FECHA]);
+      if(!ts) return false;
+      if(fechaIni && ts<fechaIni) return false;
+      if(fechaFin && ts>fechaFin) return false;
+    }
     return true;
   });
   var active=(yrs.length?1:0)+(mess.length?1:0)+(vens.length?1:0)+[cli,fam].filter(Boolean).length+Object.values(clickFilters).filter(Boolean).length;
@@ -881,6 +1039,8 @@ function resetFilters(){
   buildMselList('vend',mselOptions.vend);
   document.getElementById('f-cli').value='';
   document.getElementById('f-fam').value='';
+  document.getElementById('f-fecha-ini').value='';
+  document.getElementById('f-fecha-fin').value='';
   clickFilters={mes:null,cliente:null,vendedor:null,familia:null};
   applyFilters();
 }
@@ -929,7 +1089,7 @@ var bOpts={responsive:true,maintainAspectRatio:true,
 function cO(){return JSON.parse(JSON.stringify(bOpts));}
 function noData(id){destroyC(id);var c=document.getElementById(id),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);x.fillStyle='#94a3b8';x.font='11px Inter';x.textAlign='center';x.fillText('Sin datos para mostrar',c.width/2,60);}
 function destroyC(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
-function updateCharts(){drawLine();drawDonut();drawCliente();drawMes();drawAnual();drawProductos();drawFamilia();drawVendedor();drawUtil();}
+function updateCharts(){drawLine();drawDonut();drawCliente();drawMes();drawAnual();drawProductos();drawFamilia();drawVendedor();drawUtil();drawDaily();}
 
 function drawLine(){
   destroyC('lineChart');var ctx=document.getElementById('lineChart').getContext('2d');
