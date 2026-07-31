@@ -1987,8 +1987,16 @@ async function syncToGitHub(tipo, data, filename){
     if(!r.ok){
       throw new Error(json.error||('HTTP '+r.status));
     }
-    showToast('✅ Datos guardados. Visible para todos al recargar la página.');
+    showToast('✅ Datos guardados. Actualizando en todas las computadoras...');
     updateGHStatus(true);
+    // Escribir timestamp para notificar a otras PCs
+    if(tipo==='ventas'){
+      fetch('/.netlify/functions/save-data',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({tipo:'ts',data:{ts:Date.now(),filename:filename||''},filename:filename||''})
+      }).catch(function(){});
+    }
   }catch(err){
     showToast('⚠️ No se pudo guardar en el servidor: '+err.message);
     console.warn('save-data error:',err.message);
@@ -2255,25 +2263,57 @@ async function recargarDatos(){
 }
 
 
+// ── AUTO-POLL cada 30 segundos: detectar cambios en los datos ──
+var _lastKnownTs = 0;
+
+async function checkForUpdates(){
+  if(!GH_REPO) return;
+  try{
+    // Primero verificar el timestamp (archivo pequeño, rápido)
+    var url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/data/ts.json?t='+Date.now();
+    var controller=new AbortController();
+    var timer=setTimeout(function(){controller.abort();},8000);
+    var r=await fetch(url,{signal:controller.signal});
+    clearTimeout(timer);
+    if(!r.ok) return;
+    var tsData=await r.json();
+    var serverTs=tsData.ts||0;
+
+    if(_lastKnownTs===0){
+      // Primera vez: solo guardar el timestamp
+      _lastKnownTs=serverTs;
+      return;
+    }
+
+    if(serverTs > _lastKnownTs){
+      // Hay datos nuevos — recargar ventas y catálogo
+      _lastKnownTs=serverTs;
+      showToast('🔄 Datos actualizados por otro usuario. Recargando...');
+      setTimeout(async function(){
+        var loaded=await loadFromGitHub();
+        if(loaded) showToast('✅ Base de ventas actualizada automáticamente');
+      }, 500);
+    }
+  }catch(e){ /* silencioso */ }
+}
+
+// Verificar cada 30 segundos
+setInterval(checkForUpdates, 30000);
+
 // ── AUTO-REFRESH DEL CATÁLOGO cada 5 minutos ──
 setInterval(async function(){
   if(!GH_REPO) return;
   try{
-    async function fetchJSON(path){
-      var url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+path+'?t='+Date.now();
-      var controller=new AbortController();
-      var timer=setTimeout(function(){controller.abort();},10000);
-      var r=await fetch(url,{signal:controller.signal});
-      clearTimeout(timer);
-      if(!r.ok) return null;
-      return await r.json();
-    }
-    var newCat=await fetchJSON(GH_FILES.cat);
+    var url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+GH_FILES.cat+'?t='+Date.now();
+    var controller=new AbortController();
+    var timer=setTimeout(function(){controller.abort();},10000);
+    var r=await fetch(url,{signal:controller.signal});
+    clearTimeout(timer);
+    if(!r.ok) return;
+    var newCat=await r.json();
     if(newCat&&Array.isArray(newCat)){
       var oldStr=JSON.stringify(CAT);
-      var newStr=JSON.stringify(newCat);
-      if(oldStr!==newStr){
-        // El catálogo cambió — re-aplicar vendedores
+      if(JSON.stringify(newCat)!==oldStr){
         CAT=newCat; CAT_MAP=buildCatMap(CAT);
         ALL=ALL.map(function(r){
           var v=CAT_MAP[(r[F.CLIENTE]||'').toUpperCase()];
@@ -2282,11 +2322,11 @@ setInterval(async function(){
         });
         REL=buildRelFromCat(ALL,CAT);
         populateFilters();applyFilters();renderRelaciones();renderVendedores();
-        showToast('✅ Catálogo de vendedores actualizado automáticamente');
+        showToast('✅ Catálogo actualizado automáticamente');
       }
     }
-  }catch(e){ /* silencioso */ }
-}, 5 * 60 * 1000); // cada 5 minutos
+  }catch(e){}
+}, 5 * 60 * 1000);
 
 
 // ══════════════════════════════════════════
@@ -2528,12 +2568,13 @@ async function init(){
     }catch(e){ loaded=false; }
 
     if(!loaded){
-      // GitHub sin datos o sin conexión — mostrar banner para cargar archivo
       document.getElementById('loadingScreen').classList.add('hidden');
       document.getElementById('noDataBanner').style.display='flex';
     } else {
       document.getElementById('loadingScreen').classList.add('hidden');
     }
+    // Iniciar polling de cambios (después de carga inicial)
+    setTimeout(checkForUpdates, 5000);
   }catch(err){
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('loadingScreen').innerHTML='<p style="color:red;padding:20px;text-align:center">Error: '+err+'</p>';
