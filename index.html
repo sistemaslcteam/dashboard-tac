@@ -307,6 +307,7 @@ td:first-child .tc{padding-left:12px;}
   <button class="tab" onclick="showTab('relaciones',this)">👥 Vendedor–Cliente</button>
   <button class="tab" onclick="showTab('vendedores',this)">🏆 Dashboard Vendedores</button>
   <button class="tab" onclick="showTab('comision',this)">💵 Comisión JRZ</button>
+  <button class="tab" onclick="showTab('edo',this)">📊 Estado de Resultados</button>
   <button class="tab" onclick="showTab('ordenes',this)">📋 Órdenes de Compra</button>
 </div>
 
@@ -450,6 +451,20 @@ td:first-child .tc{padding-left:12px;}
 <!-- ═══════════ PAGE: VENDEDORES ═══════════ -->
 <div class="page" id="page-vendedores">
 <div class="main">
+
+  <!-- METAS -->
+  <div class="cc" style="margin-bottom:12px;">
+    <div style="font-size:12px;font-weight:700;color:var(--nv);margin-bottom:10px;">🎯 Metas de Ventas</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="vd-metas-grid">
+      <div>
+        <div style="font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;">META GLOBAL (USD)</div>
+        <input id="meta-global" type="number" placeholder="0" oninput="renderVendedores()"
+          style="width:100%;padding:7px 10px;border:1.5px solid var(--nv);border-radius:7px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;outline:none;color:var(--nv);">
+      </div>
+      <div id="meta-ind-inputs"></div>
+    </div>
+    <div id="vd-global-progress" style="margin-top:12px;"></div>
+  </div>
 
   <!-- FILTROS -->
   <div class="fbar" style="margin-bottom:14px;">
@@ -621,6 +636,53 @@ td:first-child .tc{padding-left:12px;}
 </div>
 <!-- /PAGE COMISIÓN -->
 
+
+<!-- ═══════════ PAGE: ESTADO DE RESULTADOS ═══════════ -->
+<div class="page" id="page-edo">
+<div class="main">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--nv);">📊 Estado de Resultados — TAC JRZ</div>
+      <div style="font-size:11px;color:var(--tx2);">Real vs Presupuesto 2026 · Los datos se actualizan al subir el Excel</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label style="font-size:11px;font-weight:600;color:var(--tx2);">Ver:</label>
+      <select id="edo-mes" onchange="renderEdo()" class="fsel">
+        <option value="">Acumulado</option>
+      </select>
+      <button class="btn bg" onclick="document.getElementById('fiEdo').click()">⬆ Actualizar Excel</button>
+      <input type="file" id="fiEdo" accept=".xlsx,.xls" style="display:none;" onchange="loadEdoFile(this)">
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div id="edo-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;"></div>
+
+  <!-- CHART -->
+  <div class="cgrid3" style="margin-bottom:14px;">
+    <div class="cc">
+      <div class="cch"><div><div class="cct">Ingresos vs Presupuesto</div><div class="ccs">Por mes</div></div></div>
+      <canvas id="edo-chart-ing" style="max-height:200px;"></canvas>
+    </div>
+    <div class="cc">
+      <div class="cch"><div><div class="cct">UAFIR Mensual</div><div class="ccs">Real vs Presupuesto</div></div></div>
+      <canvas id="edo-chart-uafir" style="max-height:200px;"></canvas>
+    </div>
+  </div>
+
+  <!-- TABLA DETALLE -->
+  <div class="cc">
+    <div class="cch"><div><div class="cct">Desglose Mensual</div><div class="ccs">Real vs Presupuesto</div></div></div>
+    <div style="overflow-x:auto;">
+      <table id="edo-tabla" style="min-width:900px;"></table>
+    </div>
+  </div>
+
+</div>
+</div>
+<!-- /PAGE EDO -->
+
 <!-- ═══════════ PAGE: ÓRDENES ═══════════ -->
 <div class="page" id="page-ordenes">
 <div class="main">
@@ -654,6 +716,7 @@ var clickFilters={mes:null,cliente:null,vendedor:null,familia:null};
 
 // ── DATOS EMBEBIDOS (comprimidos) ──
 var B64_VENTAS='';
+var B64_EDO='H4sIAOv1cWoC/71Wy05cRxD9l1njVlfXo6u982MSEWGIMLZENmjkYIvIgAUmG4t/T925/ag7zCIL7FnNPdWvc7rqdP1Y3V1uvq5e/lhd3Xy5u7y/nf6uj9enJ6uXRQRYAuQUc4mF0sHqt/Xr020MQKkAh2zgu1enfxlkY6TkQHKwevX69PDIFlDNFEPZjjm3IQpaqITCFJNGiHiw+uPD8eG0XqRIjAFTnH8whY6mEKbChUPkGolsG/x+8v7MYjHEg9X79Z9nh+t3drIKnLw5+zC+jk8+LqJvD9+478eD1afb+++eN2sGzaGA42tkczSsdLrMyAmC0jhwpc3ZIjkIlfpr9LkoZAoQPcctfYlGUUPOY0plTykl5cDSJskzs/+yMfb3C/pIGCiz27HrUGI2BkTcddCoHIOdcVw7EKaQlTvvjBMwbltztMRKPFhKjhKendvD5vPVnaNm2SWJ7Gj5aUZLTIRoRMjd2pahFQEmDog14qhiwqwxkHK/0ZkyCJKpCKlmOmgnj5QJNaTSsmDI8AKwYJHA+ZmFsMp++Pp98/ftxfXl4q6FKbDV3lYOmPYdJa7JSjIAt0TArsgLI1RyCQm0chjZjwBWseYaPMq1aRJLsYqBpklymiTbJ0R9Uv2/QJLNp4fr/61JllKCcKlRHXXA5pNWGTBHYh6KlBzN9cT4b0O9LFgjQSA0LbIZ4LADSw2YOEONpC5HntYwB6Uxp6myJ+Q12hPuiu2JOf32RJ2aT6LNUS9ubq+vbjZO2YTmLcmsJY6M6tKmqCgURpJZRqCgpYt3vlnRlCz7zFFykzIJ6uSs4lauWqYMHDkk7BpCNE9Fu8Sf4qQXn6/+WfipXb+9JoDsnxMG02yLVbZkflGRStIhM0lbSCRg7tSIBzDbaEwyTfk5xP7deC8FZfNwpAUrzuaT0EmhPf8QwHHKRdG9jKMYzC8mLjLIQdISVDs5IZRQnpebkfv2bX78n/Y/kGTKvWnaMICBtddhIJXkYsz5ckhrdzxytIM0fg7yLB3cuTrMMXao493RPa2PNXCoGiL5axUdYCUtQrlBlXUWVasqeyt3uh5hKW1sa3eKh2Zjo4I705sOfrOFoynvTumCiCZqc5wi/izew3Y339cXAZhDbQt5PFKjL0pgLUJ0r0H9bupwj59vvVrmzyqI+57V6NObuTfAC6BYwWHkbZi374YtcmAG9/RIZL2rWammRftrj7Za9bGM/nfSo0Ktuq1H5ulBk51uyJbENraVt3podi8U3pne6Fun3TfzCmBJu1O6Fhyx7+Dk4KTaYKeIDV2u9Pj4+B+HiQPxHQ0AAA==';
 var B64_CAT='H4sIAD2xIGoC/41YSXLbSBD8SocOc3LwMOHbnApACSyqF6gXWITDj5o3zccmqyGKIoUGdbFkuPYlK9u/fz/R4MRLypGGEMkMbHr2OYZkBqHRh5SlD+npx1Mia8+OopiOrXXkn/78gLqV0Wfuj6rp+A3CbVnXlXcZEyaOlCX4HdNe3jLHG8OZenMqFHlZRSL1bMXE0FlO+JFox17sDPVZZuQWeYqckCgh+GTOxoZRNFXacDKTNX1wHHtBustaqCmGofRZfz2v2VzqJz4VF9Ro4jhLL7V8iKKwNSMswEw13HEnAyXjiketkcChGXsn5HvSlnhSs5F8UF+WTB/L0tazVQ9l5ESGYuQAFYt4d3QCxQF/WauuDl2wg/ixrXF2yHoomCLk0RSDLYTsKaMGBiJIfaY47rSsRyTiUf4jk83Hy/D8/fPn1zb1PIg21nHbnE42rCEKfi0y3TZJP7/b22xXLz4fBdWThREL2QFVzWxGjEZLxWK3UH+H2PADBjh6gjO/RvHh7j6X+2kjO+8V9l58zMv3hc+GSg6XMjyswqoeTEdp3clNIY9Z0PUYwn6et3KOUKC6CluyURu8gwYDEIMx3gmwcBSdWsxONM9AiLdmOQaWlMScaAEOGv1nb2ignSkaWBMNJZmeXgAemGojPXAzMrntegxi+dOGmJpGNNY4absBHuFjy6Ba6opcQCdyX7ooTjDidayp7zmF2ASfWwuOEtVYtiSDDYAPI6kWN+SA0ipsboszpTyhivnROWDYTAc61JtzmA9fG8oWuLd2Awn6Ohttc26qIIcYp8Ix012V7237KK+FsVkdhEPFowXT8pFaw0vKR9ykhE6SwIeX//7dSRGAgRk3E1qxMdLPigYeo4/uhU7PUhiijKW1e8+A/V4SkARhaDNcgfcFCOQXLE1750fgKGxdoe46izu5AplBBHxwil0TJV1Ra3yImbfjG23o6q3EXRXPMZm/yE3/mB6+goOJ/oVGHJK9JR5jmYJ5jmVojOMq8GmZpkN/OK5TJGWg4Yo2jbTKevQ/1+AGpFpqjjSuyxRuhHYsY/gYqHpk9WK3TYoZjMYxMoALVr9zRPWgCJjTTLUbXaS5AcIQweQFD2gCTYk7jT5RJ/YqdNeRE7mFniWGD3j+nhBWqjZl3pDGuQF6RotR1DsEPjMqbvsMztlIp+rYghOgK0oYfDNhyIYNxmbFVqL0gj9eAi49DOnJ2zZsxU3Cy3qex3d+YLXXCgVxy74ts2hyIM6aSMiKoDEjnMbm1riRXvC4nORolgU7NSuHaI9HVToWt85TsdKhUPKRflPPrZh6YqCUUR0A23fIon6gWmJNJ5ML+gyIOAx7e6Ef1OwVvPDbaYfUaaWOgHXwCAWWdU8cWNGejhq2qODISgYrbEILBbQgMVaG7bI7d/raPfCCqd7VbVcB+BpRNqV3yB1Y2x9BLNoFuEVGc3dYK/P7GsTEYKJYAVgbw4PhwZjnEilVJ9Xb+RFY6etEhkR7AoBj8ysEQFCw5fIU23Ifw8x8JRq4fIimQigq47C+9qHiF+Z7PUW3b68NM6+ZXx5xCey403eqWa/D9IrBzw1zED3b0l3u2LZBdB53e53NHYIfqWAqLZ8wj8C+XpcNt7jydX0R7mhFxieIGItfgLy5kb4uidKad5RqR6ycXK8BgDzYtCs36MtX+zCF3BYsHWsJlnAmg2LtrAC+6kvdUndL0DfSSVoazIQmpG9fUtDYuXeXo4B6dcHaYNZrEeAAi8kbq4XRGhVlo6vc6oIvHxvW8LNqVcy98Cm9SPCxo3TkmjjYzs1jvyEtVs+GA7RgDZT2faJ7LRUQPVdX3zzLqS7QIxaG/YxN3AHyWuXU7yNLALqePuW5YS+H6Za6PcCemX1ZT3+L4/3ihFf8BSjzmlNT+k15fbphfOv/vdzTkD//A5IyJ8zPEgAA';
 var B64_OC='';
 
@@ -2043,6 +2106,7 @@ function renderVendedores(){
   });
 
   var vList=Object.entries(vendors).sort(function(a,b){return b[1].venta-a[1].venta;});
+  renderMetaInputs(vList);
   var totalVenta=vList.reduce(function(s,e){return s+e[1].venta;},0);
 
   document.getElementById('vd-info').textContent=data.length.toLocaleString()+' registros · '+fmtC(totalVenta)+' total';
@@ -2065,9 +2129,21 @@ function renderVendedores(){
       +'<div style="text-align:right"><div style="font-size:1.3rem;font-weight:700;color:'+color+'">'+fmtC(d.venta)+'</div>'
       +'<div style="font-size:10px;color:var(--tx2)">en ventas</div></div>'
       +'</div>'
-      // Progress bar
-      +'<div style="background:var(--gy2);border-radius:99px;height:6px;margin-bottom:14px;">'
-      +'<div style="width:'+pct+'%;background:'+color+';height:6px;border-radius:99px;transition:.5s;"></div></div>'
+      // Meta y progress bar
+      +(function(){
+        var metaInd=vendMetas[name]||0;
+        var metaGlob=parseFloat((document.getElementById('meta-global')||{}).value)||0;
+        var mt=metaInd||metaGlob;
+        var mp=mt>0?Math.min(100,(d.venta/mt)*100):0;
+        var mc=mp>=100?'var(--gd)':mp>=75?'var(--am)':'var(--rd)';
+        if(mt>0) return '<div style="margin-bottom:10px;">'
+          +'<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--tx2);margin-bottom:3px;"><span>🎯 Meta</span>'
+          +'<span style="font-weight:700;color:'+mc+'">'+fmtC(d.venta)+' / '+fmtC(mt)+' ('+mp.toFixed(1)+'%)</span></div>'
+          +'<div style="background:var(--gy2);border-radius:99px;height:10px;overflow:hidden;">'
+          +'<div style="width:'+mp.toFixed(1)+'%;background:'+color+';height:10px;border-radius:99px;transition:.6s;box-shadow:0 0 8px '+color+'66;"></div></div></div>';
+        return '<div style="background:var(--gy2);border-radius:99px;height:6px;margin-bottom:14px;">'
+          +'<div style="width:'+pct+'%;background:'+color+';height:6px;border-radius:99px;transition:.5s;"></div></div>';
+      })()
       // KPI row
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">'
       +kpiMini('💰','Utilidad',fmtC(d.util))
@@ -2444,12 +2520,9 @@ function renderComision(){
   var pctComision = getPctComision(pctUtilBruta);
   var comisionJRZ = venta * pctComision;
   var comisionMXP = comisionJRZ * tc;
-  var comisionMXPiva = comisionMXP * 1.08;  // +8% IVA
-  var pendiente = comisionMXPiva - abonado;
+  var pendiente = comisionMXP - abonado;
 
   // ── PROYECCIÓN ──
-  // Factor = días hábiles totales del mes / días transcurridos hasta hoy
-  // Si diasTrans >= diasMes significa que ya terminó el mes → proyección = real
   var factor = (diasTrans > 0 && diasTrans < diasMes) ? diasMes/diasTrans : 1;
   var esMesCompleto = diasTrans >= diasMes;
   var ventaProy    = venta * factor;
@@ -2459,8 +2532,7 @@ function renderComision(){
   var pctComProy   = getPctComision(pctUtilProy);
   var comisionProy = ventaProy * pctComProy;
   var comMXPProy   = comisionProy * tc;
-  var comMXPivaProy= comMXPProy * 1.08;
-  var pendProy     = comMXPivaProy - abonado;
+  var pendProy     = comMXPProy - abonado;
 
   // ── RENDER RESULTADOS ──
   function kpiBox(label, val, color, sub){
@@ -2485,17 +2557,17 @@ function renderComision(){
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">';
   html+=kpiBox('Comisión JRZ (USD)', fmtFull(comisionJRZ), 'var(--am)', 'Venta × '+fmtPct(pctComision));
   html+=kpiBox('Comisión en MXP', fmtFull(comisionMXP), 'var(--am)', 'TC: '+tc.toFixed(4));
-  html+=kpiBox('Comisión + IVA 8% (MXP)', fmtFull(comisionMXPiva), '#b45309');
+  html+=kpiBox('Comisión en MXP', fmtFull(comisionMXP), '#b45309');
   html+=kpiBox('Abonado (MXP)', fmtFull(abonado), 'var(--gd)');
   html+='</div>';
 
   // Total a facturar
   var pColor = pendiente > 0 ? 'var(--rd)' : 'var(--gd)';
   html+='<div style="background:#fff;border:2px solid '+(pendiente>0?'var(--rd)':'var(--gd)')+';border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">';
-  html+='<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--tx2);">'+(pendiente>0?'💵 Total por Facturar a TAC (con IVA)':'✅ Saldo a Favor')+'</div>';
+  html+='<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--tx2);">'+(pendiente>0?'💵 Total por Facturar a TAC ()':'✅ Saldo a Favor')+'</div>';
   html+='<div style="font-size:1.6rem;font-weight:800;color:'+pColor+'">'+fmtFull(Math.abs(pendiente))+' MXP</div></div>';
   html+='<div style="text-align:right;font-size:11px;color:var(--tx2);">'+
-    '<div>Comisión total: '+fmtFull(comisionMXPiva)+' MXP</div>'+
+    '<div>Comisión total: '+fmtFull(comisionMXP)+' MXP</div>'+
     '<div>Abonado: '+fmtFull(abonado)+' MXP</div></div>';
   html+='</div>';
 
@@ -2510,7 +2582,7 @@ function renderComision(){
   html+=kpiBox('Venta Proy. (USD)', fmtFull(ventaProy), 'var(--nv)');
   html+=kpiBox('% Util. Bruta Proy.', fmtPct(pctUtilProy), '#7c3aed');
   html+=kpiBox('% Comisión Proy.', fmtPct(pctComProy), '#7c3aed');
-  html+=kpiBox('Comisión Proy. + IVA', fmtFull(comMXPivaProy), 'var(--am)');
+  html+=kpiBox('Comisión Proyectada', fmtFull(comMXPProy), 'var(--am)');
   html+=kpiBox(pendProy>0?'Pendiente Proyectado':'Saldo Proyectado', fmtFull(Math.abs(pendProy))+' MXP', pendProy>0?'var(--rd)':'var(--gd)');
   html+='</div></div>';
 
@@ -2527,8 +2599,8 @@ function renderComision(){
     ['Comisión JRZ (USD)', fmtFull(comisionJRZ), fmtFull(comisionProy)],
     ['TC (MXP/USD)', tc.toFixed(4), tc.toFixed(4)],
     ['Comisión en MXP', fmtFull(comisionMXP), fmtFull(comMXPProy)],
-    ['Comisión + IVA 8% (MXP)', fmtFull(comisionMXPiva), fmtFull(comMXPivaProy)],
-    ['Abonado con IVA (MXP)', fmtFull(abonado), fmtFull(abonado)],
+    ['Comisión en MXP', fmtFull(comisionMXP), fmtFull(comMXPProy)],
+    ['Abonado (MXP)', fmtFull(abonado), fmtFull(abonado)],
     ['TOTAL POR FACTURAR A TAC (MXP)', '<strong style="color:'+pColor+'">'+fmtFull(pendiente)+'</strong>', '<strong style="color:'+(pendProy>0?'var(--rd)':'var(--gd)')+'">'+fmtFull(pendProy)+'</strong>'],
   ];
   html+='<tr><th style="background:var(--nv);padding:7px 10px;text-align:left;width:200px;">Concepto</th><th style="background:var(--nv);padding:7px 10px;text-align:right;">Real</th><th style="background:var(--nv);padding:7px 10px;text-align:right;">Proyectado</th></tr>';
@@ -2548,6 +2620,254 @@ function renderComision(){
     tbHtml+='<tr style="border-bottom:1px solid var(--gy2);'+bg+'"><td><div class="tc">'+fmtPct(row[0])+'</div></td><td><div class="tc" style="color:var(--gd);">'+fmtPct(row[1])+'</div></td><td><div class="tc" style="color:var(--tx2);">+0.3030% por cada 1%</div></td></tr>';
   });
   document.getElementById('cm-tabla-eq').innerHTML=tbHtml;
+}
+
+
+// ── METAS DE VENDEDORES ──
+var vendMetas = {}; // {vendedor: meta_individual}
+
+function renderMetaInputs(vList){
+  var metaGlobal = parseFloat(document.getElementById('meta-global').value)||0;
+  var totalVenta = vList.reduce(function(s,e){return s+e[1].venta;},0);
+
+  // Individual meta inputs — built with DOM to avoid quote escaping issues
+  var indDiv = document.getElementById('meta-ind-inputs');
+  if(indDiv && vList.length){
+    indDiv.innerHTML = '';
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:grid;grid-template-columns:repeat('+vList.length+',1fr);gap:10px;grid-column:span 3;';
+    vList.forEach(function(e){
+      var name = e[0];
+      var div = document.createElement('div');
+      var lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;';
+      lbl.textContent = 'META ' + name.split(' ')[0] + ' (USD)';
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.placeholder = '0';
+      inp.value = vendMetas[name] || '';
+      inp.style.cssText = 'width:100%;padding:6px 9px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:Inter,sans-serif;outline:none;';
+      inp.dataset.vend = name;
+      inp.addEventListener('input', function(){ vendMetas[this.dataset.vend] = parseFloat(this.value)||0; renderVendedores(); });
+      div.appendChild(lbl); div.appendChild(inp);
+      wrapper.appendChild(div);
+    });
+    indDiv.appendChild(wrapper);
+  }
+
+
+  // Global progress bar
+  var gpDiv = document.getElementById('vd-global-progress');
+  if(gpDiv && metaGlobal > 0){
+    var pct = Math.min(100, (totalVenta/metaGlobal)*100);
+    var color = pct>=100?'var(--gd)':pct>=75?'var(--am)':'var(--rd)';
+    var gradients = vList.map(function(e,i){
+      var vPct = Math.min(100,(e[1].venta/metaGlobal)*100);
+      return COLORS[i%COLORS.length]+' '+(i>0?vList.slice(0,i).reduce(function(s,x){return s+(x[1].venta/metaGlobal)*100;},0).toFixed(1)+'%':'0%')+', '+COLORS[i%COLORS.length]+' '+Math.min(100,vList.slice(0,i+1).reduce(function(s,x){return s+(x[1].venta/metaGlobal)*100;},0)).toFixed(1)+'%';
+    });
+    gpDiv.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--tx2);white-space:nowrap;">Global</div>'
+      +'<div style="flex:1;background:var(--gy2);border-radius:99px;height:16px;overflow:hidden;position:relative;">'
+      +'<div style="height:100%;width:'+pct.toFixed(1)+'%;background:linear-gradient(90deg,'+gradients.join(',')+');border-radius:99px;transition:.5s;"></div>'
+      +'</div>'
+      +'<div style="font-size:12px;font-weight:700;color:'+color+';white-space:nowrap;">'+fmtC(totalVenta)+' / '+fmtC(metaGlobal)+' ('+pct.toFixed(1)+'%)</div>'
+      +'</div>';
+  } else if(gpDiv){
+    gpDiv.innerHTML = '';
+  }
+}
+
+
+// ══════════════════════════════════════════
+// ESTADO DE RESULTADOS
+// ══════════════════════════════════════════
+var EDO_DATA = null; // {real:{ingreso,costo,gastos,uafir,...}, ppto:{...}}
+var MONTHS_ES_EDO = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+
+async function initEdo(){
+  try{
+    EDO_DATA = JSON.parse(gzip.decompress(atob(B64_EDO)));
+  }catch(e){
+    try{
+      var bin=atob(B64_EDO), bytes=new Uint8Array(bin.length);
+      for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      var ds=new DecompressionStream('gzip'), w=ds.writable.getWriter();
+      w.write(bytes); w.close();
+      var rd=ds.readable.getReader(), chunks=[], tot=0;
+      while(true){var r=await rd.read();if(r.done)break;chunks.push(r.value);tot+=r.value.length;}
+      var out=new Uint8Array(tot),off=0;
+      chunks.forEach(function(c){out.set(c,off);off+=c.length;});
+      EDO_DATA=JSON.parse(new TextDecoder().decode(out));
+    }catch(e2){console.warn('EDO init error:',e2);}
+  }
+  if(EDO_DATA) populateEdoMes();
+}
+
+function populateEdoMes(){
+  var sel=document.getElementById('edo-mes');
+  if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='<option value="">Acumulado año</option>';
+  MONTHS_ES_EDO.forEach(function(m){
+    var v=EDO_DATA&&EDO_DATA.real&&EDO_DATA.real.ingreso&&EDO_DATA.real.ingreso[m];
+    if(v&&v!==0){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);}
+  });
+  if(cur) sel.value=cur;
+}
+
+function getEdoMesData(mes){
+  if(!EDO_DATA) return null;
+  var r=EDO_DATA.real, p=EDO_DATA.ppto;
+  function sumM(obj, upToMes){
+    var months = upToMes ? MONTHS_ES_EDO.slice(0, MONTHS_ES_EDO.indexOf(upToMes)+1) : MONTHS_ES_EDO;
+    return months.reduce(function(s,m){return s+(obj[m]||0);},0);
+  }
+  var ingR=mes?r.ingreso[mes]:sumM(r.ingreso,null);
+  var cosR=mes?r.costo[mes]:sumM(r.costo,null);
+  var gasR=mes?r.gastos[mes]:sumM(r.gastos,null);
+  var uafR=mes?r.uafir[mes]:sumM(r.uafir,null);
+  var ingP=mes?p.ingreso[mes]:sumM(p.ingreso,null);
+  var cosP=mes?p.costo[mes]:sumM(p.costo,null);
+  var gasP=mes?p.gastos[mes]:sumM(p.gastos,null);
+  var uafP=mes?p.uafir[mes]:sumM(p.uafir,null);
+  // filter to non-zero months only
+  if(!mes){
+    var activeMonths=MONTHS_ES_EDO.filter(function(m){return (r.ingreso[m]||0)!==0||(r.costo[m]||0)!==0;});
+    ingR=activeMonths.reduce(function(s,m){return s+(r.ingreso[m]||0);},0);
+    cosR=activeMonths.reduce(function(s,m){return s+(r.costo[m]||0);},0);
+    gasR=activeMonths.reduce(function(s,m){return s+(r.gastos[m]||0);},0);
+    uafR=activeMonths.reduce(function(s,m){return s+(r.uafir[m]||0);},0);
+    ingP=activeMonths.reduce(function(s,m){return s+(p.ingreso[m]||0);},0);
+    cosP=activeMonths.reduce(function(s,m){return s+(p.costo[m]||0);},0);
+    gasP=activeMonths.reduce(function(s,m){return s+(p.gastos[m]||0);},0);
+    uafP=activeMonths.reduce(function(s,m){return s+(p.uafir[m]||0);},0);
+  }
+  return {ingR,cosR,gasR,uafR,ingP,cosP,gasP,uafP};
+}
+
+function renderEdo(){
+  if(!EDO_DATA){initEdo().then(renderEdo);return;}
+  populateEdoMes();
+  var mes=document.getElementById('edo-mes').value;
+  var d=getEdoMesData(mes||null);
+  if(!d) return;
+
+  // KPI Cards
+  function edoKpi(label,real,ppto,color,icon){
+    var vs=ppto!==0?(((real-ppto)/Math.abs(ppto))*100).toFixed(1):0;
+    var vsColor=parseFloat(vs)>=0?'var(--gd)':'var(--rd)';
+    var vsIcon=parseFloat(vs)>=0?'↑':'↓';
+    return '<div style="background:#fff;border:1px solid var(--gy2);border-radius:10px;padding:13px;border-left:4px solid '+color+';">'
+      +'<div style="font-size:9px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">'+icon+' '+label+'</div>'
+      +'<div style="font-size:1.15rem;font-weight:800;color:'+color+'">'+fmtC(real)+'</div>'
+      +'<div style="font-size:10px;color:var(--tx2);margin-top:3px;">Presupuesto: '+fmtC(ppto)+'</div>'
+      +'<div style="font-size:11px;font-weight:700;color:'+vsColor+';margin-top:4px;">'+vsIcon+' '+Math.abs(vs)+'% vs presupuesto</div>'
+      +'</div>';
+  }
+
+  var kpis='';
+  kpis+=edoKpi('Ingresos',d.ingR,d.ingP,'var(--nv)','💰');
+  kpis+=edoKpi('Costo Total',d.cosR,d.cosP,'var(--rd)','📦');
+  kpis+=edoKpi('Gastos',d.gasR,d.gasP,'var(--am)','📋');
+  kpis+=edoKpi('UAFIR / Utilidad Neta',d.uafR,d.uafP,d.uafR>=0?'var(--gd)':'var(--rd)','📈');
+  document.getElementById('edo-kpis').innerHTML=kpis;
+
+  // Charts
+  var activeM=MONTHS_ES_EDO.filter(function(m){
+    return (EDO_DATA.real.ingreso[m]||0)!==0||(EDO_DATA.real.costo[m]||0)!==0;
+  });
+  var labels=activeM.map(function(m){return m.substring(0,3);});
+
+  destroyC('edo-chart-ing');
+  var ctx1=document.getElementById('edo-chart-ing').getContext('2d');
+  var o1=cO(); o1.plugins.legend={display:true,labels:{color:'#64748b',font:{family:'Inter',size:10},boxWidth:10}};
+  charts['edo-chart-ing']=new Chart(ctx1,{type:'bar',data:{labels:labels,datasets:[
+    {label:'Real',data:activeM.map(function(m){return EDO_DATA.real.ingreso[m]||0;}),backgroundColor:'#0d2a4acc',borderColor:'#0d2a4a',borderWidth:1,borderRadius:4},
+    {label:'Presupuesto',data:activeM.map(function(m){return EDO_DATA.ppto.ingreso[m]||0;}),backgroundColor:'#2ecc7144',borderColor:'#2ecc71',borderWidth:1,borderRadius:4,borderDash:[4,3]}
+  ]},options:o1});
+
+  destroyC('edo-chart-uafir');
+  var ctx2=document.getElementById('edo-chart-uafir').getContext('2d');
+  var o2=cO(); o2.plugins.legend={display:true,labels:{color:'#64748b',font:{family:'Inter',size:10},boxWidth:10}};
+  charts['edo-chart-uafir']=new Chart(ctx2,{type:'bar',data:{labels:labels,datasets:[
+    {label:'UAFIR Real',data:activeM.map(function(m){return EDO_DATA.real.uafir[m]||0;}),
+      backgroundColor:activeM.map(function(m){return (EDO_DATA.real.uafir[m]||0)>=0?'#2ecc71aa':'#e74c3caa';}),
+      borderColor:activeM.map(function(m){return (EDO_DATA.real.uafir[m]||0)>=0?'#27ae60':'#e74c3c';}),
+      borderWidth:1,borderRadius:4},
+    {label:'Presupuesto',data:activeM.map(function(m){return EDO_DATA.ppto.uafir[m]||0;}),
+      backgroundColor:'#f59e0b44',borderColor:'#f59e0b',borderWidth:1,borderRadius:4}
+  ]},options:o2});
+
+  // Tabla mensual
+  var thead='<thead><tr><th style="min-width:140px;">Concepto</th>'+activeM.map(function(m){return '<th style="text-align:right;min-width:110px;">'+m.substring(0,3)+'<br><span style="font-size:9px;opacity:.6;">Real / Ppto</span></th>';}).join('')+'<th style="text-align:right;min-width:120px;">TOTAL<br><span style="font-size:9px;opacity:.6;">Real / Ppto</span></th></tr></thead>';
+  function tableRow(label, realKey, pptoKey, color){
+    var cells=activeM.map(function(m){
+      var rv=EDO_DATA.real[realKey][m]||0;
+      var pv=EDO_DATA.ppto[pptoKey][m]||0;
+      var vs=pv!==0?((rv-pv)/Math.abs(pv)*100).toFixed(0):'-';
+      var vc=parseFloat(vs)>=0?'var(--gd)':'var(--rd)';
+      return '<td style="text-align:right;padding:6px 10px;font-size:10px;border-bottom:1px solid var(--gy2);">'
+        +'<div style="font-weight:600;">'+fmtC(rv)+'</div>'
+        +'<div style="color:var(--tx2);font-size:9px;">'+fmtC(pv)+'</div>'
+        +(pv!==0?'<div style="color:'+vc+';font-size:9px;">'+vs+'%</div>':'')
+        +'</td>';
+    }).join('');
+    var totalR=activeM.reduce(function(s,m){return s+(EDO_DATA.real[realKey][m]||0);},0);
+    var totalP=activeM.reduce(function(s,m){return s+(EDO_DATA.ppto[pptoKey][m]||0);},0);
+    var tvs=totalP!==0?((totalR-totalP)/Math.abs(totalP)*100).toFixed(0):'-';
+    var tvc=parseFloat(tvs)>=0?'var(--gd)':'var(--rd)';
+    return '<tr><td style="padding:6px 10px;font-size:11px;font-weight:700;color:'+color+';border-bottom:1px solid var(--gy2);">'+label+'</td>'+cells
+      +'<td style="text-align:right;padding:6px 10px;font-size:10px;border-bottom:1px solid var(--gy2);background:var(--gy);">'
+      +'<div style="font-weight:700;">'+fmtC(totalR)+'</div>'
+      +'<div style="color:var(--tx2);font-size:9px;">'+fmtC(totalP)+'</div>'
+      +(totalP!==0?'<div style="color:'+tvc+';font-size:9px;">'+tvs+'%</div>':'')
+      +'</td></tr>';
+  }
+  var tbody='<tbody>'
+    +tableRow('💰 Ingresos','ingreso','ingreso','var(--nv)')
+    +tableRow('📦 Costo Total','costo','costo','var(--rd)')
+    +tableRow('📋 Gastos Totales','gastos','gastos','var(--am)')
+    +tableRow('📈 UAFIR / Utilidad','uafir','uafir','var(--gd)')
+    +'</tbody>';
+  document.getElementById('edo-tabla').innerHTML=thead+tbody;
+}
+
+// Load new Excel file for EDO
+function loadEdoFile(input){
+  var file=input.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var wb=XLSX.read(e.target.result,{type:'array'});
+    // Parse ETD FIN TAC JRZ OPE 2026 and PRESUPUESTO TAC 2026
+    var months_es=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+    var valCols=[2,4,6,8,10,12,14,16,18,20,22,24];
+
+    function parseSheet(sheetName, rowMap){
+      var sheet=wb.Sheets[sheetName];
+      if(!sheet) return {};
+      var data=XLSX.utils.sheet_to_json(sheet,{header:1,defval:0});
+      var result={};
+      Object.keys(rowMap).forEach(function(key){
+        var ri=rowMap[key];
+        result[key]={};
+        months_es.forEach(function(m,j){
+          var ci=valCols[j];
+          result[key][m]= ci<(data[ri]||[]).length ? (parseFloat(data[ri][ci])||0) : 0;
+        });
+      });
+      return result;
+    }
+
+    var rowMap={ingreso:18,costo:53,gastos:80,uafir:84};
+    EDO_DATA={
+      real: parseSheet('ETD FIN TAC JRZ OPE 2026', rowMap),
+      ppto: parseSheet('PRESUPUESTO TAC 2026', rowMap)
+    };
+    populateEdoMes();
+    renderEdo();
+    showToast('✅ Estado de Resultados actualizado');
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function showToast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3500);}
@@ -2575,6 +2895,8 @@ async function init(){
     }
     // Iniciar polling de cambios (después de carga inicial)
     setTimeout(checkForUpdates, 5000);
+    // Cargar EDO data
+    initEdo();
   }catch(err){
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('loadingScreen').innerHTML='<p style="color:red;padding:20px;text-align:center">Error: '+err+'</p>';
