@@ -651,8 +651,7 @@ td:first-child .tc{padding-left:12px;}
       <select id="edo-mes" onchange="renderEdo()" class="fsel">
         <option value="">Acumulado</option>
       </select>
-      <button class="btn bg" onclick="document.getElementById('fiEdo').click()">⬆ Actualizar Excel</button>
-      <input type="file" id="fiEdo" accept=".xlsx,.xls" style="display:none;" onchange="loadEdoFile(this)">
+      <label class="btn bg" style="cursor:pointer;">⬆ Actualizar Excel<input type="file" id="fiEdo" accept=".xlsx,.xls" style="display:none;position:absolute;" onchange="loadEdoFile(this)"></label>
     </div>
   </div>
 
@@ -2688,20 +2687,16 @@ var MONTHS_ES_EDO = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','A
 
 async function initEdo(){
   try{
-    EDO_DATA = JSON.parse(gzip.decompress(atob(B64_EDO)));
-  }catch(e){
-    try{
-      var bin=atob(B64_EDO), bytes=new Uint8Array(bin.length);
-      for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-      var ds=new DecompressionStream('gzip'), w=ds.writable.getWriter();
-      w.write(bytes); w.close();
-      var rd=ds.readable.getReader(), chunks=[], tot=0;
-      while(true){var r=await rd.read();if(r.done)break;chunks.push(r.value);tot+=r.value.length;}
-      var out=new Uint8Array(tot),off=0;
-      chunks.forEach(function(c){out.set(c,off);off+=c.length;});
-      EDO_DATA=JSON.parse(new TextDecoder().decode(out));
-    }catch(e2){console.warn('EDO init error:',e2);}
-  }
+    var bin=atob(B64_EDO), bytes=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    var ds=new DecompressionStream('gzip'), w=ds.writable.getWriter();
+    w.write(bytes); w.close();
+    var rd=ds.readable.getReader(), chunks=[], tot=0;
+    while(true){var r=await rd.read();if(r.done)break;chunks.push(r.value);tot+=r.value.length;}
+    var out=new Uint8Array(tot),off=0;
+    chunks.forEach(function(c){out.set(c,off);off+=c.length;});
+    EDO_DATA=JSON.parse(new TextDecoder().decode(out));
+  }catch(e){ console.warn('EDO init error:',e); }
   if(EDO_DATA) populateEdoMes();
 }
 
@@ -2711,7 +2706,8 @@ function populateEdoMes(){
   var cur=sel.value;
   sel.innerHTML='<option value="">Acumulado año</option>';
   MONTHS_ES_EDO.forEach(function(m){
-    var v=EDO_DATA&&EDO_DATA.real&&EDO_DATA.real.ingreso&&EDO_DATA.real.ingreso[m];
+    var _ri=(EDO_DATA.summary&&EDO_DATA.summary.real)||EDO_DATA.real;
+    var v=_ri&&_ri.ingreso&&_ri.ingreso[m];
     if(v&&v!==0){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);}
   });
   if(cur) sel.value=cur;
@@ -2719,7 +2715,9 @@ function populateEdoMes(){
 
 function getEdoMesData(mes){
   if(!EDO_DATA) return null;
-  var r=EDO_DATA.real, p=EDO_DATA.ppto;
+  // Support both data formats
+  var r=(EDO_DATA.summary&&EDO_DATA.summary.real)||EDO_DATA.real||{};
+  var p=(EDO_DATA.summary&&EDO_DATA.summary.ppto)||EDO_DATA.ppto||{};
   function sumM(obj, upToMes){
     var months = upToMes ? MONTHS_ES_EDO.slice(0, MONTHS_ES_EDO.indexOf(upToMes)+1) : MONTHS_ES_EDO;
     return months.reduce(function(s,m){return s+(obj[m]||0);},0);
@@ -2843,9 +2841,12 @@ function renderEdoDesglose(mes){
   if(!container) return;
 
   var MONTHS_ES_EDO=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  // Support both old format (EDO_DATA.real.ingreso) and new (EDO_DATA.summary.real.ingreso)
+  var _sum = (EDO_DATA.summary&&EDO_DATA.summary.real) ? EDO_DATA.summary.real
+             : (EDO_DATA.real && !EDO_DATA.real.sections) ? EDO_DATA.real : null;
   var activeM=MONTHS_ES_EDO.filter(function(m){
-    var v=EDO_DATA.summary&&EDO_DATA.summary.real&&EDO_DATA.summary.real.ingreso;
-    return v&&((v[m]||0)!==0||(EDO_DATA.summary.real.costo[m]||0)!==0);
+    if(!_sum||!_sum.ingreso) return false;
+    return (_sum.ingreso[m]||0)!==0||(_sum.costo[m]||0)!==0;
   });
 
   var months = mes ? [mes] : activeM;
