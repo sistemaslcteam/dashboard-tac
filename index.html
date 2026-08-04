@@ -2707,8 +2707,8 @@ function populateEdoMes(){
   sel.innerHTML='<option value="">Acumulado año</option>';
   MONTHS_ES_EDO.forEach(function(m){
     var _ri=(EDO_DATA.summary&&EDO_DATA.summary.real)||EDO_DATA.real;
-    var v=_ri&&_ri.ingreso&&_ri.ingreso[m];
-    if(v&&v!==0){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);}
+    var v=(_ri&&_ri.ingreso) ? (_ri.ingreso[m]||0) : 0;
+    if(v!==0){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);}
   });
   if(cur) sel.value=cur;
 }
@@ -2761,7 +2761,9 @@ function renderEdo(){
 
   // ── Meses activos ──
   var activeM=MONTHS_ES_EDO.filter(function(m){
-    return (rS.ingreso&&rS.ingreso[m]||0)!==0 || (rS.costo&&rS.costo[m]||0)!==0;
+    var vi = rS.ingreso ? (rS.ingreso[m]||0) : 0;
+    var vc = rS.costo   ? (rS.costo[m]||0)   : 0;
+    return vi!==0 || vc!==0;
   });
   var months = mes ? [mes] : activeM;
 
