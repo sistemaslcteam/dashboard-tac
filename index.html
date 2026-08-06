@@ -454,16 +454,23 @@ td:first-child .tc{padding-left:12px;}
 
   <!-- METAS -->
   <div class="cc" style="margin-bottom:12px;">
-    <div style="font-size:12px;font-weight:700;color:var(--nv);margin-bottom:10px;">🎯 Metas de Ventas</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="vd-metas-grid">
-      <div>
-        <div style="font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;">META GLOBAL (USD)</div>
-        <input id="meta-global" type="text" inputmode="decimal" placeholder="Auto (desde metas)" oninput="var r=this.value.replace(/,/g,'');vendMetas['__global__']=parseFloat(r)||0;renderVendedores();" onblur="var n=parseFloat(this.value.replace(/,/g,''))||0;if(n>0)this.value=Math.round(n).toLocaleString('es-MX');" onfocus="this.value=this.value.replace(/,/g,'')"
-          style="width:100%;padding:7px 10px;border:1.5px solid var(--nv);border-radius:7px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;outline:none;color:var(--nv);">
+    <div style="font-size:12px;font-weight:700;color:var(--nv);margin-bottom:12px;">🎯 Metas de Ventas</div>
+    <!-- Labels row -->
+    <div id="vd-metas-labels" style="display:flex;gap:10px;margin-bottom:4px;"></div>
+    <!-- Inputs row -->
+    <div style="display:flex;gap:10px;align-items:flex-end;">
+      <div style="min-width:200px;flex:1.5;">
+        <div style="font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Meta Global (USD)</div>
+        <input id="meta-global" type="text" inputmode="decimal"
+          placeholder="Auto (desde metas)"
+          oninput="clearTimeout(this._rt);var self=this;this._rt=setTimeout(function(){var r=self.value.replace(/[^0-9.]/g,'');updateVendedorCards();},400);"
+          onblur="var n=parseFloat(this.value.replace(/[^0-9.]/g,''))||0;if(n>0)this.value=Math.round(n).toLocaleString('es-MX');else this.value='';"
+          onfocus="var n=parseFloat(this.value.replace(/[^0-9.]/g,''))||0;this.value=n>0?String(Math.round(n)):'';"
+          style="width:100%;padding:8px 10px;border:1.5px solid var(--nv);border-radius:7px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;outline:none;color:var(--nv);box-sizing:border-box;">
       </div>
-      <div id="meta-ind-inputs"></div>
+      <div id="meta-ind-inputs" style="display:flex;gap:10px;flex:3;"></div>
     </div>
-    <div id="vd-global-progress" style="margin-top:12px;"></div>
+    <div id="vd-global-progress" style="margin-top:14px;"></div>
   </div>
 
   <!-- FILTROS -->
@@ -2689,26 +2696,31 @@ function renderMetaInputs(vList){
   if(indDiv && vList.length){
     indDiv.innerHTML = '';
     var wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display:grid;grid-template-columns:repeat('+vList.length+',1fr);gap:10px;grid-column:span 3;';
+    wrapper.style.cssText = 'display:flex;gap:10px;flex:1;';
     vList.forEach(function(e){
       var name=e[0];
       var metaEmb = getMetaVendedor(name, mesActivo);
       var val = vendMetas[name] || metaEmb || '';
       var div=document.createElement('div');
       var lbl=document.createElement('div');
-      lbl.style.cssText='font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;';
+      lbl.style.cssText='font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
       lbl.textContent='META '+name.split(' ')[0]+' (USD)'+(metaEmb?' 🎯':'');
       var inp=document.createElement('input');
       inp.type='text';
       inp.inputMode='decimal';
       inp.placeholder='0';
       inp.value = val ? Number(val).toLocaleString('es-MX') : '';
-      inp.style.cssText='width:100%;padding:6px 9px;border:1.5px solid '+(metaEmb?'var(--nv)':'var(--gy2)')+';border-radius:7px;font-size:12px;font-family:Inter,sans-serif;outline:none;';
+      inp.style.cssText='width:100%;padding:8px 10px;border:1.5px solid '+(metaEmb?'var(--nv)':'var(--gy2)')+';border-radius:7px;font-size:13px;font-weight:'+(metaEmb?'700':'400')+';font-family:Inter,sans-serif;outline:none;box-sizing:border-box;color:'+(metaEmb?'var(--nv)':'var(--tx)')+';';
       inp.dataset.vend=name;
       inp.addEventListener('input', function(){
         var n=parseFloat(this.value.replace(/[^0-9.]/g,''))||0;
         vendMetas[this.dataset.vend]=n;
-        renderVendedores();
+        // Only update progress bars, NOT the full DOM (which would lose focus)
+        clearTimeout(inp._rt);
+        var self=this;
+        inp._rt=setTimeout(function(){
+          updateVendedorCards();
+        }, 400);
       });
       inp.addEventListener('blur', function(){
         var n=parseFloat(this.value.replace(/[^0-9.]/g,''))||0;
@@ -2719,6 +2731,7 @@ function renderMetaInputs(vList){
         var n=parseFloat(this.value.replace(/[^0-9.]/g,''))||0;
         this.value=n>0?String(n):'';
       });
+      div.style.cssText='flex:1;min-width:100px;';
       div.appendChild(lbl); div.appendChild(inp);
       wrapper.appendChild(div);
     });
@@ -3185,6 +3198,81 @@ function getMetaGlobal(mes){
   var mess=mselState.vdmes;
   var months = mess.length ? mess : MONTHS_ES_EDO;
   return months.reduce(function(s,mo){return s+(m[mo.toUpperCase()]||0);},0);
+}
+
+
+// Update only cards and progress bars without rebuilding meta inputs
+function updateVendedorCards(){
+  var yr  = document.getElementById('vd-year') ? document.getElementById('vd-year').value : '';
+  var mes = document.getElementById('vd-mes')  ? document.getElementById('vd-mes').value  : '';
+  // Re-read current meta-global value
+  var mgEl=document.getElementById('meta-global');
+  var mgRaw=(mgEl&&mgEl.value||'').replace(/[^0-9.]/g,'');
+  var metaGlobal=parseFloat(mgRaw)||0;
+
+  var data=getVendorData(mselState.vdyear, mselState.vdmes);
+  var vendors={};
+  data.forEach(function(r){
+    var v=r[F.VENDEDOR];
+    if(!vendors[v]) vendors[v]={venta:0,util:0,cant:0,clientes:new Set(),skus:new Set(),trans:0,by_mes:{},by_cli:{},by_fam:{},by_clave:{}};
+    var d=vendors[v];
+    d.venta+=r[F.VENTA]; d.util+=r[F.UTIL]; d.cant+=r[F.CANT]; d.trans++;
+    d.clientes.add(r[F.CLIENTE]); d.skus.add(r[F.CLAVE]);
+    d.by_mes[r[F.MES]]=(d.by_mes[r[F.MES]]||0)+r[F.VENTA];
+    d.by_cli[r[F.CLIENTE]]=(d.by_cli[r[F.CLIENTE]]||0)+r[F.VENTA];
+    d.by_fam[r[F.FAMILIA]]=(d.by_fam[r[F.FAMILIA]]||0)+r[F.VENTA];
+    d.by_clave[r[F.CLAVE]]=(d.by_clave[r[F.CLAVE]]||0)+r[F.VENTA];
+  });
+  var vList=Object.entries(vendors).sort(function(a,b){return b[1].venta-a[1].venta;});
+  var totalVenta=vList.reduce(function(s,e){return s+e[1].venta;},0);
+
+  // Rebuild global progress bar only
+  var gpDiv=document.getElementById('vd-global-progress');
+  var mesA=mselState.vdmes.length===1?mselState.vdmes[0]:null;
+  var effMeta = metaGlobal || getMetaGlobal(mesA);
+  if(gpDiv && effMeta>0){
+    var pct=Math.min(100,(totalVenta/effMeta)*100);
+    var color=pct>=100?'var(--gd)':pct>=75?'var(--am)':'var(--rd)';
+    var gradients=vList.map(function(e,i){
+      var from=i>0?Math.min(100,vList.slice(0,i).reduce(function(s,x){return s+(x[1].venta/effMeta)*100;},0)).toFixed(1)+'%':'0%';
+      var to=Math.min(100,vList.slice(0,i+1).reduce(function(s,x){return s+(x[1].venta/effMeta)*100;},0)).toFixed(1)+'%';
+      return COLORS[i%COLORS.length]+' '+from+', '+COLORS[i%COLORS.length]+' '+to;
+    });
+    gpDiv.innerHTML='<div style="margin-top:4px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--tx2);">🎯 Meta Global</div>'
+      +'<div style="font-size:12px;font-weight:700;color:'+color+';">'+fmtC(totalVenta)+' / '+fmtC(effMeta)+' ('+pct.toFixed(1)+'%)</div>'
+      +'</div>'
+      +'<div style="background:var(--gy2);border-radius:99px;height:14px;overflow:hidden;">'
+      +'<div style="height:100%;width:'+pct.toFixed(1)+'%;background:linear-gradient(90deg,'+gradients.join(',')+');border-radius:99px;transition:.5s;"></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;">'
+      +vList.map(function(e,i){
+        var vp=effMeta>0?Math.min(100,(e[1].venta/effMeta)*100).toFixed(1):0;
+        return '<div style="display:flex;align-items:center;gap:4px;font-size:10px;">'
+          +'<div style="width:10px;height:10px;border-radius:50%;background:'+COLORS[i%COLORS.length]+';"></div>'
+          +'<span style="color:var(--tx2);">'+e[0].split(' ')[0]+':</span>'
+          +'<span style="font-weight:600;color:'+COLORS[i%COLORS.length]+';">'+fmtC(e[1].venta)+' ('+vp+'%)</span>'
+          +'</div>';
+      }).join('')
+      +'</div></div>';
+  }
+
+  // Update individual card progress bars only (find by data-vend)
+  document.querySelectorAll('[data-meta-vend]').forEach(function(bar){
+    var vname=bar.dataset.metaVend;
+    var vdata=vendors[vname];
+    if(!vdata) return;
+    var metaEmb=getMetaVendedor(vname,mesA);
+    var metaInd=vendMetas[vname]||metaEmb||0;
+    var mt=metaInd||(metaGlobal||getMetaGlobal(mesA))||0;
+    if(mt<=0) return;
+    var mp=Math.min(100,(vdata.venta/mt)*100);
+    bar.style.width=mp.toFixed(1)+'%';
+    // Update label
+    var lbl=bar.parentElement.previousElementSibling;
+    if(lbl) lbl.lastChild.textContent=fmtC(vdata.venta)+' / '+fmtC(mt)+' ('+mp.toFixed(1)+'%)';
+  });
 }
 
 function showToast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3500);}
