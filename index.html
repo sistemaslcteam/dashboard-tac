@@ -458,7 +458,7 @@ td:first-child .tc{padding-left:12px;}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="vd-metas-grid">
       <div>
         <div style="font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;">META GLOBAL (USD)</div>
-        <input id="meta-global" type="number" placeholder="Auto (desde metas)" step="0.01" oninput="renderVendedores()"
+        <input id="meta-global" type="text" inputmode="decimal" placeholder="Auto (desde metas)" oninput="var r=this.value.replace(/,/g,'');vendMetas['__global__']=parseFloat(r)||0;renderVendedores();" onblur="var n=parseFloat(this.value.replace(/,/g,''))||0;if(n>0)this.value=Math.round(n).toLocaleString('es-MX');" onfocus="this.value=this.value.replace(/,/g,'')"
           style="width:100%;padding:7px 10px;border:1.5px solid var(--nv);border-radius:7px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;outline:none;color:var(--nv);">
       </div>
       <div id="meta-ind-inputs"></div>
@@ -2699,11 +2699,26 @@ function renderMetaInputs(vList){
       lbl.style.cssText='font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;';
       lbl.textContent='META '+name.split(' ')[0]+' (USD)'+(metaEmb?' 🎯':'');
       var inp=document.createElement('input');
-      inp.type='number'; inp.placeholder='0'; inp.step='0.01'; inp.min='0';
-      inp.value=val;
+      inp.type='text';
+      inp.inputMode='decimal';
+      inp.placeholder='0';
+      inp.value = val ? Number(val).toLocaleString('es-MX') : '';
       inp.style.cssText='width:100%;padding:6px 9px;border:1.5px solid '+(metaEmb?'var(--nv)':'var(--gy2)')+';border-radius:7px;font-size:12px;font-family:Inter,sans-serif;outline:none;';
       inp.dataset.vend=name;
-      inp.oninput=function(){ vendMetas[this.dataset.vend]=parseFloat(this.value)||0; renderVendedores(); };
+      inp.addEventListener('input', function(){
+        var n=parseFloat(this.value.replace(/[^0-9.]/g,''))||0;
+        vendMetas[this.dataset.vend]=n;
+        renderVendedores();
+      });
+      inp.addEventListener('blur', function(){
+        var n=parseFloat(this.value.replace(/[^0-9.]/g,''))||0;
+        if(n>0) this.value=Math.round(n).toLocaleString('es-MX');
+        else this.value='';
+      });
+      inp.addEventListener('focus', function(){
+        var n=parseFloat(this.value.replace(/[^0-9.]/g,''))||0;
+        this.value=n>0?String(n):'';
+      });
       div.appendChild(lbl); div.appendChild(inp);
       wrapper.appendChild(div);
     });
