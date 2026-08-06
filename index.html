@@ -458,7 +458,7 @@ td:first-child .tc{padding-left:12px;}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="vd-metas-grid">
       <div>
         <div style="font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;">META GLOBAL (USD)</div>
-        <input id="meta-global" type="number" placeholder="0" oninput="renderVendedores()"
+        <input id="meta-global" type="number" placeholder="Auto (desde metas)" step="0.01" oninput="renderVendedores()"
           style="width:100%;padding:7px 10px;border:1.5px solid var(--nv);border-radius:7px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;outline:none;color:var(--nv);">
       </div>
       <div id="meta-ind-inputs"></div>
@@ -656,11 +656,18 @@ td:first-child .tc{padding-left:12px;}
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <label style="font-size:11px;font-weight:600;color:var(--tx2);">Ver:</label>
-      <select id="edo-mes" onchange="renderEdo()" class="fsel" multiple
-        style="min-width:160px;height:72px;padding:3px 6px;font-size:11px;">
-        <option value="">Acumulado año</option>
-      </select>
-      <div style="font-size:9px;color:var(--tx2);margin-top:2px;white-space:nowrap;">Ctrl+clic = varios meses</div>
+      <div class="msel" id="msel-edoms">
+        <button class="msel-btn" onclick="toggleMsel('msel-edoms')" style="min-width:180px;">
+          <span id="msel-edoms-label">Acumulado año</span><span class="car">▾</span>
+        </button>
+        <div class="msel-panel">
+          <div class="msel-actions">
+            <button onclick="mselNone('edoms')">Acumulado</button>
+            <button onclick="mselAll('edoms')">Todos</button>
+          </div>
+          <div class="msel-list" id="msel-edoms-list"></div>
+        </div>
+      </div>
       <label class="btn bg" style="cursor:pointer;">⬆ Actualizar Excel<input type="file" id="fiEdo" accept=".xlsx,.xls" style="display:none;position:absolute;" onchange="loadEdoFile(this)"></label>
     </div>
   </div>
@@ -844,8 +851,8 @@ function buildRelFromCat(ventas,cat){
 // ══════════════════════════════════════════
 // MULTI-SELECT DROPDOWN COMPONENT
 // ══════════════════════════════════════════
-var mselState={year:[],mes:[],vend:[],vdyear:[],vdmes:[]};   // arrays of selected values (empty = todos)
-var mselOptions={year:[],mes:[],vend:[],vdyear:[],vdmes:[]}; // available options per filter
+var mselState={year:[],mes:[],vend:[],vdyear:[],vdmes:[],edoms:[]};   // arrays of selected values (empty = todos)
+var mselOptions={year:[],mes:[],vend:[],vdyear:[],vdmes:[],edoms:[]}; // available options per filter
 
 function toggleMsel(id){
   var el=document.getElementById(id);
@@ -871,7 +878,9 @@ function buildMselList(key, options){
 
 function mselRefreshFn(key){
   // vdyear/vdmes belong to the Vendedores dashboard; everything else to the main filters
-  return (key==='vdyear'||key==='vdmes') ? renderVendedores : applyFilters;
+  if(key==='vdyear'||key==='vdmes') return renderVendedores;
+  if(key==='edoms') return renderEdo;
+  return applyFilters;
 }
 
 function mselToggle(key,val,checked){
@@ -896,7 +905,7 @@ function updateMselLabel(key){
   var lbl=document.getElementById('msel-'+key+'-label');
   var btn=document.querySelector('#msel-'+key+' .msel-btn');
   var n=mselState[key].length;
-  var defaultLabels={year:'Todos los años',mes:'Todos los meses',vend:'Todos los vendedores',vdyear:'Todos los años',vdmes:'Todos los meses'};
+  var defaultLabels={year:'Todos los años',mes:'Todos los meses',vend:'Todos los vendedores',vdyear:'Todos los años',vdmes:'Todos los meses',edoms:'Acumulado año'};
   if(n===0){ lbl.textContent=defaultLabels[key]; btn.classList.remove('active'); }
   else if(n===1){ lbl.textContent=mselState[key][0]; btn.classList.add('active'); }
   else{ lbl.textContent=n+' seleccionados'; btn.classList.add('active'); }
@@ -2690,7 +2699,7 @@ function renderMetaInputs(vList){
       lbl.style.cssText='font-size:10px;color:var(--tx2);margin-bottom:4px;font-weight:600;';
       lbl.textContent='META '+name.split(' ')[0]+' (USD)'+(metaEmb?' 🎯':'');
       var inp=document.createElement('input');
-      inp.type='number'; inp.placeholder='0';
+      inp.type='number'; inp.placeholder='0'; inp.step='0.01'; inp.min='0';
       inp.value=val;
       inp.style.cssText='width:100%;padding:6px 9px;border:1.5px solid '+(metaEmb?'var(--nv)':'var(--gy2)')+';border-radius:7px;font-size:12px;font-family:Inter,sans-serif;outline:none;';
       inp.dataset.vend=name;
@@ -2750,18 +2759,13 @@ async function initEdo(){
 }
 
 function populateEdoMes(){
-  var sel=document.getElementById('edo-mes');
-  if(!sel) return;
-  var curVals=Array.from(sel.selectedOptions||[]).map(function(o){return o.value;});
-  sel.innerHTML='<option value="">Acumulado año</option>';
-  MONTHS_ES_EDO.forEach(function(m){
-    var _ri=(EDO_DATA.summary&&EDO_DATA.summary.real)||EDO_DATA.real;
-    var v=(_ri&&_ri.ingreso) ? (_ri.ingreso[m]||0) : 0;
-    if(v!==0){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);}
+  if(!EDO_DATA) return;
+  var _ri=(EDO_DATA.summary&&EDO_DATA.summary.real)||(EDO_DATA.real&&!EDO_DATA.real.sections?EDO_DATA.real:null);
+  if(!_ri||!_ri.ingreso) return;
+  var activeMonths=MONTHS_ES_EDO.filter(function(m){
+    return (_ri.ingreso[m]||0)!==0;
   });
-  curVals.forEach(function(v){
-    Array.from(sel.options).forEach(function(o){if(o.value===v)o.selected=true;});
-  });
+  buildMselList('edoms', activeMonths);
 }
 
 function getEdoMesData(mes){
@@ -2799,8 +2803,8 @@ function getEdoMesData(mes){
 function renderEdo(){
   if(!EDO_DATA){initEdo().then(renderEdo);return;}
   populateEdoMes();
-  var edoSel=document.getElementById('edo-mes');
-  var selectedMes=Array.from(edoSel.selectedOptions).map(function(o){return o.value;}).filter(Boolean);
+  // Use mselState.edoms (checkbox dropdown)
+  var selectedMes = mselState.edoms; // array of selected months, empty = all
   var mes = selectedMes.length===1 ? selectedMes[0] : null;
   var multiMes = selectedMes.length>1 ? selectedMes : null;
 
@@ -3152,12 +3156,10 @@ function getMetaVendedor(vend, mes){
   var m=METAS_DATA[vend];
   if(!m) return 0;
   if(mes) return m[mes.toUpperCase()]||0;
-  // Sin mes: sumar meses activos del período actual
-  var yrs=mselState.vdyear, mess=mselState.vdmes;
-  var months=MONTHS_ES_EDO.filter(function(mo){
-    return (!mess.length||mess.indexOf(mo)>=0);
-  });
-  return months.reduce(function(s,mo){return s+(m[mo]||0);},0);
+  // Sin mes específico: sumar los meses seleccionados en Dashboard Vendedores
+  var mess=mselState.vdmes;
+  var months = mess.length ? mess : MONTHS_ES_EDO;
+  return months.reduce(function(s,mo){return s+(m[mo.toUpperCase()]||0);},0);
 }
 
 function getMetaGlobal(mes){
@@ -3166,10 +3168,8 @@ function getMetaGlobal(mes){
   if(!m) return 0;
   if(mes) return m[mes.toUpperCase()]||0;
   var mess=mselState.vdmes;
-  var months=MONTHS_ES_EDO.filter(function(mo){
-    return (!mess.length||mess.indexOf(mo)>=0);
-  });
-  return months.reduce(function(s,mo){return s+(m[mo]||0);},0);
+  var months = mess.length ? mess : MONTHS_ES_EDO;
+  return months.reduce(function(s,mo){return s+(m[mo.toUpperCase()]||0);},0);
 }
 
 function showToast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3500);}
