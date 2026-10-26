@@ -1194,37 +1194,77 @@ function updateKPIs(){
   document.getElementById('kv5').textContent=bestMes;
   document.getElementById('ks5').textContent=fmtKpi(bestVal,true);
   // ── Meta diaria: delegado a función reutilizable ──
-  updateKpiDailyDate(document.getElementById('kpi-daily-date')?document.getElementById('kpi-daily-date').value:'');
+  // Si hay rango activo, el KPI usa el rango (limpiar picker manual)
+  var _iniV=document.getElementById('f-fecha-ini')?document.getElementById('f-fecha-ini').value:'';
+  var _finV=document.getElementById('f-fecha-fin')?document.getElementById('f-fecha-fin').value:'';
+  if(_iniV&&_finV){
+    var _dp=document.getElementById('kpi-daily-date');
+    if(_dp) _dp.value=''; // rango tiene prioridad sobre picker manual
+    updateKpiDailyDate('');
+  } else {
+    updateKpiDailyDate(document.getElementById('kpi-daily-date')?document.getElementById('kpi-daily-date').value:'');
+  }
 }
 
 // Calcula venta de cualquier día (o hoy si dateStr vacío) y actualiza el KPI card
 function updateKpiDailyDate(dateStr){
-  var td, tm, ty;
-  var labelSuffix;
-  if(dateStr){
-    // dateStr viene como YYYY-MM-DD del input type=date
-    var p=dateStr.split('-');
-    ty=parseInt(p[0]); tm=parseInt(p[1])-1; td=parseInt(p[2]);
-    // Format DD/MM/YYYY for label
-    var dd=String(td).padStart(2,'0'), mm=String(tm+1).padStart(2,'0');
-    labelSuffix=dd+'/'+mm+'/'+ty;
-  } else {
-    var now=new Date();
-    ty=now.getFullYear(); tm=now.getMonth(); td=now.getDate();
-    labelSuffix='Hoy';
-  }
-  var src=filteredData&&filteredData.length?filteredData:ALL;
-  var ventaDia=src.reduce(function(s,r){
-    var f=r[F.FECHA]; if(!f) return s;
-    var pts=f.split('/');
-    if(pts.length<3) return s;
-    var fd=parseInt(pts[0]),fm=parseInt(pts[1])-1,fy=parseInt(pts[2]);
-    return (fd===td&&fm===tm&&fy===ty)?s+r[F.VENTA]:s;
-  },0);
-  var dMeta=typeof DAILY_META!=='undefined'?DAILY_META:26027.46;
-  var dPct=dMeta>0?Math.round(ventaDia/dMeta*100):0;
-  var dColor=dPct>=100?'var(--g)':dPct>=70?'var(--am)':'var(--rd)';
   function fK(n){return '$'+Math.round(n).toLocaleString('es-MX');}
+  var dMeta=typeof DAILY_META!=='undefined'?DAILY_META:26027.46;
+  var src=filteredData&&filteredData.length?filteredData:ALL;
+
+  // Lee el rango de fechas activo en el filtro principal
+  var iniVal=document.getElementById('f-fecha-ini')?document.getElementById('f-fecha-ini').value:'';
+  var finVal=document.getElementById('f-fecha-fin')?document.getElementById('f-fecha-fin').value:'';
+  var hasRange=iniVal&&finVal;
+
+  // El input propio del KPI (date picker manual)
+  var hasPicker=!!dateStr;
+
+  var labelSuffix, ventaDia, metaTotal;
+
+  if(hasPicker){
+    // ── Modo 1: fecha específica elegida en el KPI ──
+    var p=dateStr.split('-');
+    var ty=parseInt(p[0]),tm=parseInt(p[1])-1,td=parseInt(p[2]);
+    var dd=String(td).padStart(2,'0'),mm=String(tm+1).padStart(2,'0');
+    labelSuffix=dd+'/'+mm+'/'+ty;
+    metaTotal=dMeta; // un solo día
+    ventaDia=src.reduce(function(s,r){
+      var f=r[F.FECHA]; if(!f) return s;
+      var pts=f.split('/'); if(pts.length<3) return s;
+      var fd=parseInt(pts[0]),fm=parseInt(pts[1])-1,fy=parseInt(pts[2]);
+      return (fd===td&&fm===tm&&fy===ty)?s+r[F.VENTA]:s;
+    },0);
+  } else if(hasRange){
+    // ── Modo 2: rango activo en el filtro principal ──
+    // Parsear YYYY-MM-DD a fecha local
+    function parseLocal(s){var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
+    var dIni=parseLocal(iniVal), dFin=parseLocal(finVal);
+    // Contar días calendario en el rango (inclusive)
+    var diffMs=dFin.getTime()-dIni.getTime();
+    var numDias=Math.round(diffMs/86400000)+1;
+    metaTotal=dMeta*numDias;
+    // Formatear label
+    function fmtD(d){return String(d.getDate()).padStart(2,'0')+'/'+ String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+    labelSuffix=numDias===1?fmtD(dIni):fmtD(dIni)+' → '+fmtD(dFin)+' ('+numDias+' días)';
+    // Suma la venta de filteredData (que ya está filtrado por ese rango)
+    ventaDia=src.reduce(function(s,r){return s+r[F.VENTA];},0);
+  } else {
+    // ── Modo 3: sin rango, sin picker → HOY ──
+    var now=new Date();
+    var ty=now.getFullYear(),tm=now.getMonth(),td=now.getDate();
+    labelSuffix='Hoy';
+    metaTotal=dMeta;
+    ventaDia=src.reduce(function(s,r){
+      var f=r[F.FECHA]; if(!f) return s;
+      var pts=f.split('/'); if(pts.length<3) return s;
+      var fd=parseInt(pts[0]),fm=parseInt(pts[1])-1,fy=parseInt(pts[2]);
+      return (fd===td&&fm===tm&&fy===ty)?s+r[F.VENTA]:s;
+    },0);
+  }
+
+  var dPct=metaTotal>0?Math.round(ventaDia/metaTotal*100):0;
+  var dColor=dPct>=100?'var(--g)':dPct>=70?'var(--am)':'var(--rd)';
   var el6=document.getElementById('kv6');
   var es6=document.getElementById('ks6');
   var el=document.getElementById('kl6');
@@ -1233,11 +1273,11 @@ function updateKpiDailyDate(dateStr){
   var edc=document.getElementById('kpi-daily-meta');
   if(el){ el.textContent='Meta Diaria — '+labelSuffix; }
   if(el6){ el6.textContent=fK(ventaDia); }
-  if(es6){ es6.textContent='de '+fK(dMeta)+' meta diaria'; }
+  if(es6){ es6.textContent='de '+fK(metaTotal)+(hasRange&&!hasPicker?' meta del período':' meta diaria'); }
   if(edb){ edb.style.width=Math.min(dPct,100)+'%'; edb.style.background=dColor; }
   if(edp){
-    var label=dPct>=100?'✅ Meta alcanzada':dPct>=70?'En camino ▲':'Por debajo ▼';
-    edp.textContent=dPct+'% — '+label;
+    var lbl=dPct>=100?'✅ Meta alcanzada':dPct>=70?'En camino ▲':'Por debajo ▼';
+    edp.textContent=dPct+'% — '+lbl;
     edp.style.color=dColor;
   }
   if(edc){ edc.style.borderLeftColor=dColor; }
