@@ -506,6 +506,15 @@ td:first-child .tc{padding-left:12px;}
       <div class="msel-panel"><div class="msel-actions"><button onclick="mselAll('vdmes')">Todos</button><button onclick="mselNone('vdmes')">Ninguno</button></div><div class="msel-list" id="msel-vdmes-list"></div></div>
     </div>
     <span class="fsep"></span>
+    <span style="font-size:11px;color:var(--tx2);font-weight:600;">&#128197; Rango:</span>
+    <input type="date" id="vd-fecha-ini" onchange="renderVendedores()"
+      style="padding:5px 8px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;color:var(--nv);outline:none;cursor:pointer;">
+    <span style="font-size:11px;color:var(--tx2);">&rarr;</span>
+    <input type="date" id="vd-fecha-fin" onchange="renderVendedores()"
+      style="padding:5px 8px;border:1.5px solid var(--gy2);border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;color:var(--nv);outline:none;cursor:pointer;">
+    <button onclick="document.getElementById('vd-fecha-ini').value='';document.getElementById('vd-fecha-fin').value='';renderVendedores();"
+      style="padding:4px 8px;border:1.5px solid var(--gy2);border-radius:7px;font-size:11px;background:#fff;cursor:pointer;color:var(--tx2);font-family:'Inter',sans-serif;" title="Limpiar rango">&#10005;</button>
+    <span class="fsep"></span>
     <span class="finfo" id="vd-info"></span>
   </div>
 
