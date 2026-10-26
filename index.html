@@ -52,15 +52,15 @@ body{font-family:'Inter',sans-serif;background:var(--gy);color:var(--tx);font-si
 .finfo{font-size:11px;color:var(--tx2);margin-left:auto;}
 
 /* KPIs */
-.krow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;}
-@media(max-width:1100px){.krow{grid-template-columns:repeat(3,1fr);}}
+.krow{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:12px;}
+@media(max-width:1300px){.krow{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:600px){.krow{grid-template-columns:repeat(2,1fr);}}
 .kpi{background:#fff;border:1px solid var(--gy2);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden;transition:.15s;cursor:default;}
 .kpi:hover{box-shadow:0 4px 14px rgba(13,42,74,.1);}
 .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
-.k1::before{background:var(--nv)}.k2::before{background:var(--g)}.k3::before{background:var(--am)}.k4::before{background:var(--bl)}.k5::before{background:var(--pk)}
+.k1::before{background:var(--nv)}.k2::before{background:var(--g)}.k3::before{background:var(--am)}.k4::before{background:var(--bl)}.k5::before{background:var(--pk)}.k6::before{background:var(--g)}
 .kv{font-size:1.2rem;font-weight:700;line-height:1.1;margin-bottom:2px;color:var(--nv);}
-.k2 .kv{color:var(--gd)}.k3 .kv{color:#b45309}.k4 .kv{color:#1d4ed8}.k5 .kv{color:#9d174d}
+.k2 .kv{color:var(--gd)}.k3 .kv{color:#b45309}.k6 .kv{color:var(--gd)}.k4 .kv{color:#1d4ed8}.k5 .kv{color:#9d174d}
 .kl{font-size:9px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:4px;}
 .ksub{font-size:10px;color:var(--tx2);margin-top:3px;}
 .kico{position:absolute;right:10px;top:10px;font-size:17px;opacity:.35;}
@@ -366,6 +366,16 @@ td:first-child .tc{padding-left:12px;}
     <div class="kpi k3"><div class="kico">📦</div><div class="kl">Unidades Vendidas</div><div class="kv" id="kv3" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">0</div><div class="ksub" id="ks3">—</div></div>
     <div class="kpi k4"><div class="kico">👥</div><div class="kl">Clientes Únicos</div><div class="kv" id="kv4" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">0</div><div class="ksub" id="ks4">—</div></div>
     <div class="kpi k5"><div class="kico">🏆</div><div class="kl">Mejor Mes</div><div class="kv" id="kv5" style="font-size:1rem">—</div><div class="ksub" id="ks5">—</div></div>
+    <div class="kpi k6" id="kpi-daily-meta" style="position:relative;overflow:hidden;">
+      <div class="kico">🎯</div>
+      <div class="kl">Meta Diaria — Hoy</div>
+      <div class="kv" id="kv6" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">$0</div>
+      <div class="ksub" id="ks6">de $26,027 meta diaria</div>
+      <div style="margin-top:8px;background:rgba(0,0,0,.07);border-radius:4px;height:5px;overflow:hidden;">
+        <div id="kpi-daily-bar" style="height:100%;width:0%;border-radius:4px;background:var(--g);transition:width .4s;"></div>
+      </div>
+      <div id="kpi-daily-pct" style="font-size:10px;font-weight:700;margin-top:4px;color:var(--g);">0%</div>
+    </div>
   </div>
 
   <!-- CHARTS ROW 1 -->
@@ -1174,6 +1184,29 @@ function updateKPIs(){
   document.getElementById('ks4').textContent='clientes activos';
   document.getElementById('kv5').textContent=bestMes;
   document.getElementById('ks5').textContent=fmtKpi(bestVal,true);
+  // ── Meta diaria: venta de HOY ──
+  var today=new Date();
+  var ty=today.getFullYear(), tm=today.getMonth(), td=today.getDate();
+  var ventaHoy=filteredData.reduce(function(s,r){
+    var f=r[F.FECHA]; if(!f) return s;
+    var pts=f.split('/');
+    if(pts.length<3) return s;
+    var fd=parseInt(pts[0]),fm=parseInt(pts[1])-1,fy=parseInt(pts[2]);
+    return (fd===td&&fm===tm&&fy===ty)?s+r[F.VENTA]:s;
+  },0);
+  var dMeta=typeof DAILY_META!=='undefined'?DAILY_META:26027.46;
+  var dPct=dMeta>0?Math.min(Math.round(ventaHoy/dMeta*100),999):0;
+  var dColor=dPct>=100?'var(--g)':dPct>=70?'var(--am)':'var(--rd)';
+  var el6=document.getElementById('kv6');
+  var es6=document.getElementById('ks6');
+  var edb=document.getElementById('kpi-daily-bar');
+  var edp=document.getElementById('kpi-daily-pct');
+  var edc=document.getElementById('kpi-daily-meta');
+  if(el6){ el6.textContent=fmtKpi(ventaHoy,true); }
+  if(es6){ es6.textContent='de '+fmtKpi(dMeta,true)+' meta diaria'; }
+  if(edb){ edb.style.width=Math.min(dPct,100)+'%'; edb.style.background=dColor; }
+  if(edp){ edp.textContent=dPct+'% '+( dPct>=100?'✅ Meta alcanzada':dPct>=70?'En camino':'Por debajo'); edp.style.color=dColor; }
+  if(edc){ edc.style.borderLeftColor=dColor; }
 }
 
 // ── CHARTS ──
