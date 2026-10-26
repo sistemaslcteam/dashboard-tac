@@ -2287,11 +2287,18 @@ async function syncToGitHub(tipo, data, filename){
 // ══════════════════════════════════════════
 // DASHBOARD VENDEDORES
 // ══════════════════════════════════════════
-function getVendorData(yrs, mess){
+function getVendorData(yrs, mess, fechaIniTs, fechaFinTs){
   return ALL.filter(function(r){
     if(r[F.VENDEDOR]==='SIN ASIGNAR') return false;
     if(yrs.length  && yrs.indexOf(r[F.AÑO])<0)  return false;
     if(mess.length && mess.indexOf(r[F.MES])<0)  return false;
+    if(fechaIniTs||fechaFinTs){
+      var f=r[F.FECHA]; if(!f) return false;
+      var pts=f.split('/'); if(pts.length<3) return false;
+      var ts=new Date(parseInt(pts[2]),parseInt(pts[1])-1,parseInt(pts[0])).getTime();
+      if(fechaIniTs && ts<fechaIniTs) return false;
+      if(fechaFinTs && ts>fechaFinTs) return false;
+    }
     return true;
   });
 }
@@ -3379,7 +3386,15 @@ function updateVendedorCards(){
   var mgRaw=(mgEl&&mgEl.value||'').replace(/[^0-9.]/g,'');
   var metaGlobal=parseFloat(mgRaw)||0;
 
-  var data=getVendorData(mselState.vdyear, mselState.vdmes);
+  var _vdIniEl2=document.getElementById('vd-fecha-ini');
+  var _vdFinEl2=document.getElementById('vd-fecha-fin');
+  var _vdIniV2=_vdIniEl2?_vdIniEl2.value:'';
+  var _vdFinV2=_vdFinEl2?_vdFinEl2.value:'';
+  function _vdTs2(s){if(!s)return null;var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])).getTime();}
+  var _vdIniTs2=_vdTs2(_vdIniV2), _vdFinTs2=_vdTs2(_vdFinV2);
+  if(_vdIniTs2&&!_vdFinTs2) _vdFinTs2=_vdIniTs2;
+  if(_vdFinTs2&&!_vdIniTs2) _vdIniTs2=_vdFinTs2;
+  var data=getVendorData(mselState.vdyear, mselState.vdmes, _vdIniTs2, _vdFinTs2);
   var vendors={};
   data.forEach(function(r){
     var v=r[F.VENDEDOR];
