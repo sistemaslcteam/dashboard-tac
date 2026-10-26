@@ -2296,7 +2296,16 @@ function renderVendedores(){
 
   var yrs  = mselState.vdyear;
   var mess = mselState.vdmes;
-  var data = getVendorData(yrs, mess);
+  // Date range
+  var vdIniEl=document.getElementById('vd-fecha-ini');
+  var vdFinEl=document.getElementById('vd-fecha-fin');
+  var vdIniV=vdIniEl?vdIniEl.value:'';
+  var vdFinV=vdFinEl?vdFinEl.value:'';
+  function vdParseTs(s){if(!s)return null;var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])).getTime();}
+  var vdIniTs=vdParseTs(vdIniV), vdFinTs=vdParseTs(vdFinV);
+  if(vdIniTs&&!vdFinTs) vdFinTs=vdIniTs;
+  if(vdFinTs&&!vdIniTs) vdIniTs=vdFinTs;
+  var data = getVendorData(yrs, mess, vdIniTs, vdFinTs);
 
   // Aggregate by vendor
   var vendors={};
@@ -2317,7 +2326,7 @@ function renderVendedores(){
   renderMetaInputs(vList);
   var totalVenta=vList.reduce(function(s,e){return s+e[1].venta;},0);
 
-  document.getElementById('vd-info').textContent=data.length.toLocaleString()+' registros · '+fmtC(totalVenta)+' total';
+  document.getElementById('vd-info').textContent=data.length.toLocaleString()+' registros · '+fmtC(totalVenta)+' total'+(vdIniV&&vdFinV?' \u00b7 '+vdIniV.split('-').reverse().join('/')+' \u2192 '+vdFinV.split('-').reverse().join('/'):'');
 
   // ── RANKING CARDS ──
   var RANK_COLORS=['#f59e0b','#94a3b8','#b45309']; // oro, plata, bronce
