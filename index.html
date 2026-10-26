@@ -368,13 +368,22 @@ td:first-child .tc{padding-left:12px;}
     <div class="kpi k5"><div class="kico">🏆</div><div class="kl">Mejor Mes</div><div class="kv" id="kv5" style="font-size:1rem">—</div><div class="ksub" id="ks5">—</div></div>
     <div class="kpi k6" id="kpi-daily-meta" style="position:relative;overflow:hidden;">
       <div class="kico">🎯</div>
-      <div class="kl">Meta Diaria — Hoy</div>
+      <div class="kl" id="kl6">Meta Diaria — Hoy</div>
       <div class="kv" id="kv6" style="font-size:clamp(0.85rem,1.5vw,1.2rem);">$0</div>
       <div class="ksub" id="ks6">de $26,027 meta diaria</div>
       <div style="margin-top:8px;background:rgba(0,0,0,.07);border-radius:4px;height:5px;overflow:hidden;">
         <div id="kpi-daily-bar" style="height:100%;width:0%;border-radius:4px;background:var(--g);transition:width .4s;"></div>
       </div>
       <div id="kpi-daily-pct" style="font-size:10px;font-weight:700;margin-top:4px;color:var(--g);">0%</div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:4px;">
+        <input type="date" id="kpi-daily-date"
+          style="font-size:10px;padding:3px 6px;border:1px solid var(--gy2);border-radius:5px;font-family:'Inter',sans-serif;color:var(--nv);background:#fff;outline:none;cursor:pointer;flex:1;min-width:0;"
+          oninput="updateKpiDailyDate(this.value)"
+          title="Selecciona un día para comparar">
+        <button onclick="updateKpiDailyDate('');document.getElementById('kpi-daily-date').value='';"
+          style="font-size:10px;padding:3px 6px;border:1px solid var(--gy2);border-radius:5px;background:#fff;cursor:pointer;color:var(--tx2);font-family:'Inter',sans-serif;"
+          title="Ver hoy">Hoy</button>
+      </div>
     </div>
   </div>
 
@@ -1184,10 +1193,28 @@ function updateKPIs(){
   document.getElementById('ks4').textContent='clientes activos';
   document.getElementById('kv5').textContent=bestMes;
   document.getElementById('ks5').textContent=fmtKpi(bestVal,true);
-  // ── Meta diaria: venta de HOY ──
-  var today=new Date();
-  var ty=today.getFullYear(), tm=today.getMonth(), td=today.getDate();
-  var ventaHoy=filteredData.reduce(function(s,r){
+  // ── Meta diaria: delegado a función reutilizable ──
+  updateKpiDailyDate(document.getElementById('kpi-daily-date')?document.getElementById('kpi-daily-date').value:'');
+}
+
+// Calcula venta de cualquier día (o hoy si dateStr vacío) y actualiza el KPI card
+function updateKpiDailyDate(dateStr){
+  var td, tm, ty;
+  var labelSuffix;
+  if(dateStr){
+    // dateStr viene como YYYY-MM-DD del input type=date
+    var p=dateStr.split('-');
+    ty=parseInt(p[0]); tm=parseInt(p[1])-1; td=parseInt(p[2]);
+    // Format DD/MM/YYYY for label
+    var dd=String(td).padStart(2,'0'), mm=String(tm+1).padStart(2,'0');
+    labelSuffix=dd+'/'+mm+'/'+ty;
+  } else {
+    var now=new Date();
+    ty=now.getFullYear(); tm=now.getMonth(); td=now.getDate();
+    labelSuffix='Hoy';
+  }
+  var src=filteredData&&filteredData.length?filteredData:ALL;
+  var ventaDia=src.reduce(function(s,r){
     var f=r[F.FECHA]; if(!f) return s;
     var pts=f.split('/');
     if(pts.length<3) return s;
@@ -1195,17 +1222,24 @@ function updateKPIs(){
     return (fd===td&&fm===tm&&fy===ty)?s+r[F.VENTA]:s;
   },0);
   var dMeta=typeof DAILY_META!=='undefined'?DAILY_META:26027.46;
-  var dPct=dMeta>0?Math.min(Math.round(ventaHoy/dMeta*100),999):0;
+  var dPct=dMeta>0?Math.round(ventaDia/dMeta*100):0;
   var dColor=dPct>=100?'var(--g)':dPct>=70?'var(--am)':'var(--rd)';
+  function fK(n){return '$'+Math.round(n).toLocaleString('es-MX');}
   var el6=document.getElementById('kv6');
   var es6=document.getElementById('ks6');
+  var el=document.getElementById('kl6');
   var edb=document.getElementById('kpi-daily-bar');
   var edp=document.getElementById('kpi-daily-pct');
   var edc=document.getElementById('kpi-daily-meta');
-  if(el6){ el6.textContent=fmtKpi(ventaHoy,true); }
-  if(es6){ es6.textContent='de '+fmtKpi(dMeta,true)+' meta diaria'; }
+  if(el){ el.textContent='Meta Diaria — '+labelSuffix; }
+  if(el6){ el6.textContent=fK(ventaDia); }
+  if(es6){ es6.textContent='de '+fK(dMeta)+' meta diaria'; }
   if(edb){ edb.style.width=Math.min(dPct,100)+'%'; edb.style.background=dColor; }
-  if(edp){ edp.textContent=dPct+'% '+( dPct>=100?'✅ Meta alcanzada':dPct>=70?'En camino':'Por debajo'); edp.style.color=dColor; }
+  if(edp){
+    var label=dPct>=100?'✅ Meta alcanzada':dPct>=70?'En camino ▲':'Por debajo ▼';
+    edp.textContent=dPct+'% — '+label;
+    edp.style.color=dColor;
+  }
   if(edc){ edc.style.borderLeftColor=dColor; }
 }
 
