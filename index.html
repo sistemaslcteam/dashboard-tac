@@ -1696,7 +1696,130 @@ function renderReporte(){
   html+='<td><div class="tc money" style="font-size:13px">'+fmtC(totalUtil)+'</div></td>';
   html+='<td><div class="tc" style="color:var(--am);font-weight:700">'+pctMargen+'%</div></td>';
   html+='</tr>';
-  html+='</tbody></table></div></div></div>';
+  html+='</tbody></table></div></div>';
+
+  // ── CONTROL POR NO. DE PARTE ─────────────────────────────────────────────
+  var MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  // Detect years present in data
+  var yearsInData=[...new Set(data.map(function(r){return r[F.AÑO];}))].sort();
+  var has25=yearsInData.indexOf('2025')>=0;
+  var has26=yearsInData.indexOf('2026')>=0;
+
+  // Build per-SKU per-year per-month aggregation
+  var skuMap={};
+  data.forEach(function(r){
+    var k=r[F.CLAVE]; var anio=r[F.AÑO]; var nm=r[F.NUMMES]||0;
+    var mi=(typeof nm==='string'?parseInt(nm):nm)-1;
+    if(mi<0||mi>11) return;
+    if(!skuMap[k]) skuMap[k]={familia:r[F.FAMILIA],y25:Array(12).fill(0),v25:Array(12).fill(0),y26:Array(12).fill(0),v26:Array(12).fill(0)};
+    if(anio==='2025'||anio===2025){skuMap[k].y25[mi]+=r[F.CANT];skuMap[k].v25[mi]+=r[F.VENTA];}
+    if(anio==='2026'||anio===2026){skuMap[k].y26[mi]+=r[F.CANT];skuMap[k].v26[mi]+=r[F.VENTA];}
+  });
+  var skuList=Object.keys(skuMap).sort(function(a,b){
+    var t=(skuMap[b].v25.reduce(function(s,v){return s+v;},0)+skuMap[b].v26.reduce(function(s,v){return s+v;},0))
+         -(skuMap[a].v25.reduce(function(s,v){return s+v;},0)+skuMap[a].v26.reduce(function(s,v){return s+v;},0));
+    return t;
+  });
+
+  if(skuList.length>0){
+    html+='<div style="background:#fff;border:1px solid var(--gy2);border-radius:10px;overflow:hidden;margin-bottom:14px;">';
+    html+='<div style="padding:10px 14px;background:var(--nv);display:flex;align-items:center;gap:10px;">';
+    html+='<span style="font-size:13px;font-weight:700;color:#fff;">&#128203; Control por No. de Parte</span>';
+    html+='<span style="font-size:10px;color:rgba(255,255,255,.6);margin-left:auto;">'+skuList.length+' SKUs únicos</span>';
+    html+='</div>';
+    html+='<div style="overflow-x:auto;">';
+    html+='<table style="width:100%;border-collapse:collapse;min-width:'+(has25&&has26?'1200':'700')+'px;">';
+
+    // HEADER
+    html+='<thead>';
+    html+='<tr style="background:rgba(13,42,74,.06);">';
+    html+='<th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--nv);white-space:nowrap;" rowspan="2">SKU / Familia</th>';
+    if(has25){
+      html+='<th colspan="13" style="padding:5px;text-align:center;font-size:10px;font-weight:700;color:var(--bl);border-left:2px solid var(--bl);">2025 — Cantidad vendida</th>';
+    }
+    if(has26){
+      html+='<th colspan="13" style="padding:5px;text-align:center;font-size:10px;font-weight:700;color:var(--gd);border-left:2px solid var(--gd);">2026 — Cantidad vendida</th>';
+    }
+    html+='</tr><tr style="background:rgba(13,42,74,.04);">';
+    if(has25){
+      MESES_CORTOS.forEach(function(m){html+='<th style="padding:4px 5px;text-align:right;font-size:9px;color:var(--tx2);white-space:nowrap;border-left:1px solid var(--gy2);">'+m+'</th>';});
+      html+='<th style="padding:4px 6px;text-align:right;font-size:9px;font-weight:700;color:var(--bl);border-left:2px solid var(--bl);white-space:nowrap;">Total 25</th>';
+    }
+    if(has26){
+      MESES_CORTOS.forEach(function(m){html+='<th style="padding:4px 5px;text-align:right;font-size:9px;color:var(--tx2);white-space:nowrap;border-left:1px solid var(--gy2);">'+m+'</th>';});
+      html+='<th style="padding:4px 6px;text-align:right;font-size:9px;font-weight:700;color:var(--gd);border-left:2px solid var(--gd);white-space:nowrap;">Total 26</th>';
+    }
+    html+='</tr></thead><tbody>';
+
+    // ROWS
+    skuList.forEach(function(sku,idx){
+      var d=skuMap[sku];
+      var tot25=d.y25.reduce(function(s,v){return s+v;},0);
+      var tot26=d.y26.reduce(function(s,v){return s+v;},0);
+      var vtot25=d.v25.reduce(function(s,v){return s+v;},0);
+      var vtot26=d.v26.reduce(function(s,v){return s+v;},0);
+      var bg=idx%2===0?'#fff':'rgba(248,250,252,.8)';
+      html+='<tr style="background:'+bg+';border-bottom:1px solid var(--gy2);">';
+      html+='<td style="padding:5px 8px;font-size:10px;white-space:nowrap;">';
+      html+='<span style="background:var(--nv);color:#fff;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.03em;">'+sku+'</span>';
+      if(d.familia) html+='<br><span style="color:var(--tx2);font-size:9px;">'+d.familia+'</span>';
+      html+='</td>';
+      // 2025 months
+      if(has25){
+        d.y25.forEach(function(cant,mi){
+          var prom=d.v25[mi]&&cant?('$'+(d.v25[mi]/cant).toFixed(0)):'';
+          html+='<td style="padding:4px 5px;text-align:right;font-size:10px;border-left:1px solid var(--gy2);">';
+          if(cant>0){
+            html+='<span style="color:var(--bl);font-weight:600;">'+cant+'</span>';
+            if(prom) html+='<br><span style="color:var(--tx2);font-size:8px;">'+prom+'</span>';
+          } else {
+            html+='<span style="color:var(--gy3);">·</span>';
+          }
+          html+='</td>';
+        });
+        html+='<td style="padding:4px 6px;text-align:right;font-size:10px;font-weight:700;color:var(--bl);border-left:2px solid var(--bl);">'+(tot25||'·')+'</td>';
+      }
+      // 2026 months
+      if(has26){
+        d.y26.forEach(function(cant,mi){
+          var prom=d.v26[mi]&&cant?('$'+(d.v26[mi]/cant).toFixed(0)):'';
+          html+='<td style="padding:4px 5px;text-align:right;font-size:10px;border-left:1px solid var(--gy2);">';
+          if(cant>0){
+            html+='<span style="color:var(--gd);font-weight:600;">'+cant+'</span>';
+            if(prom) html+='<br><span style="color:var(--tx2);font-size:8px;">'+prom+'</span>';
+          } else {
+            html+='<span style="color:var(--gy3);">·</span>';
+          }
+          html+='</td>';
+        });
+        html+='<td style="padding:4px 6px;text-align:right;font-size:10px;font-weight:700;color:var(--gd);border-left:2px solid var(--gd);">'+(tot26||'·')+'</td>';
+      }
+      html+='</tr>';
+      // Venta row
+      var hasVentas=(vtot25>0||vtot26>0);
+      if(hasVentas){
+        html+='<tr style="background:'+(idx%2===0?'#f8faff':'#f0f7ff')+';">';
+        html+='<td style="padding:2px 8px 5px 20px;font-size:9px;color:var(--tx2);">Venta USD</td>';
+        if(has25){
+          d.v25.forEach(function(v){
+            html+='<td style="padding:2px 5px 5px;text-align:right;font-size:9px;color:var(--tx2);border-left:1px solid var(--gy2);">'+(v>0?'$'+(v/1000).toFixed(1)+'k':'')+'</td>';
+          });
+          html+='<td style="padding:2px 6px 5px;text-align:right;font-size:9px;font-weight:600;color:var(--bl);border-left:2px solid var(--bl);">'+(vtot25>0?'$'+(vtot25/1000).toFixed(1)+'k':'')+'</td>';
+        }
+        if(has26){
+          d.v26.forEach(function(v){
+            html+='<td style="padding:2px 5px 5px;text-align:right;font-size:9px;color:var(--tx2);border-left:1px solid var(--gy2);">'+(v>0?'$'+(v/1000).toFixed(1)+'k':'')+'</td>';
+          });
+          html+='<td style="padding:2px 6px 5px;text-align:right;font-size:9px;font-weight:600;color:var(--gd);border-left:2px solid var(--gd);">'+(vtot26>0?'$'+(vtot26/1000).toFixed(1)+'k':'')+'</td>';
+        }
+        html+='</tr>';
+      }
+    });
+    html+='</tbody></table></div></div>';
+  }
+  // ── END CONTROL POR NO. DE PARTE ─────────────────────────────────────────
+
+  html+='</div>';
   document.getElementById('rpt-content').innerHTML=html;
 }
 
