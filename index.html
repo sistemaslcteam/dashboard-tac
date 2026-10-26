@@ -1212,50 +1212,89 @@ function updateKpiDailyDate(dateStr){
   var dMeta=typeof DAILY_META!=='undefined'?DAILY_META:26027.46;
   var src=filteredData&&filteredData.length?filteredData:ALL;
 
-  // Lee el rango de fechas activo en el filtro principal
+  // ── Leer filtros activos ──
   var iniVal=document.getElementById('f-fecha-ini')?document.getElementById('f-fecha-ini').value:'';
   var finVal=document.getElementById('f-fecha-fin')?document.getElementById('f-fecha-fin').value:'';
   var hasRange=iniVal&&finVal;
-
-  // El input propio del KPI (date picker manual)
   var hasPicker=!!dateStr;
 
-  var labelSuffix, ventaDia, metaTotal;
+  // Meses seleccionados en el filtro multiselect
+  var MMAP={ENERO:0,FEBRERO:1,MARZO:2,ABRIL:3,MAYO:4,JUNIO:5,
+            JULIO:6,AGOSTO:7,SEPTIEMBRE:8,OCTUBRE:9,NOVIEMBRE:10,DICIEMBRE:11};
+  var mesFiltro=typeof mselState!=='undefined'?mselState.mes:[];
+  var yearFiltro=typeof mselState!=='undefined'?mselState.year:[];
+
+  // Año de referencia: el del filtro si hay uno, si no el actual
+  var now=new Date();
+  var refYear=yearFiltro.length===1?parseInt(yearFiltro[0]):now.getFullYear();
+
+  // ── Calcular días del mes para la meta ──
+  function diasEnMes(anio, mesIdx){ return new Date(anio, mesIdx+1, 0).getDate(); }
+
+  var labelSuffix, ventaDia, metaTotal, labelMeta;
 
   if(hasPicker){
-    // ── Modo 1: fecha específica elegida en el KPI ──
+    // ── Modo 1: fecha específica en el picker del KPI ──
     var p=dateStr.split('-');
     var ty=parseInt(p[0]),tm=parseInt(p[1])-1,td=parseInt(p[2]);
-    var dd=String(td).padStart(2,'0'),mm=String(tm+1).padStart(2,'0');
-    labelSuffix=dd+'/'+mm+'/'+ty;
-    metaTotal=dMeta; // un solo día
-    ventaDia=src.reduce(function(s,r){
+    var dd=String(td).padStart(2,'0'),mm2=String(tm+1).padStart(2,'0');
+    labelSuffix=dd+'/'+mm2+'/'+ty;
+    metaTotal=dMeta;
+    labelMeta='meta diaria';
+    ventaDia=(filteredData&&filteredData.length?filteredData:ALL).reduce(function(s,r){
       var f=r[F.FECHA]; if(!f) return s;
       var pts=f.split('/'); if(pts.length<3) return s;
       var fd=parseInt(pts[0]),fm=parseInt(pts[1])-1,fy=parseInt(pts[2]);
       return (fd===td&&fm===tm&&fy===ty)?s+r[F.VENTA]:s;
     },0);
+
   } else if(hasRange){
-    // ── Modo 2: rango activo en el filtro principal ──
-    // Parsear YYYY-MM-DD a fecha local
+    // ── Modo 2: rango de fechas activo ──
     function parseLocal(s){var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
     var dIni=parseLocal(iniVal), dFin=parseLocal(finVal);
-    // Contar días calendario en el rango (inclusive)
-    var diffMs=dFin.getTime()-dIni.getTime();
-    var numDias=Math.round(diffMs/86400000)+1;
+    var numDias=Math.round((dFin-dIni)/86400000)+1;
     metaTotal=dMeta*numDias;
-    // Formatear label
+    labelMeta='meta del período';
     function fmtD(d){return String(d.getDate()).padStart(2,'0')+'/'+ String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
     labelSuffix=numDias===1?fmtD(dIni):fmtD(dIni)+' → '+fmtD(dFin)+' ('+numDias+' días)';
-    // Suma la venta de filteredData (que ya está filtrado por ese rango)
     ventaDia=src.reduce(function(s,r){return s+r[F.VENTA];},0);
+
+  } else if(mesFiltro.length>0){
+    // ── Modo 3: filtro de mes activo (sin rango de fechas) ──
+    // Sumar días de todos los meses seleccionados
+    var totalDias=mesFiltro.reduce(function(s,mesNom){
+      var mIdx=MMAP[mesNom.toUpperCase()];
+      return s+(mIdx!==undefined?diasEnMes(refYear,mIdx):30);
+    },0);
+    metaTotal=dMeta*totalDias;
+    labelMeta='meta del mes';
+    if(mesFiltro.length===1){
+      var mIdx=MMAP[mesFiltro[0].toUpperCase()];
+      // Si es el mes actual, mostrar progreso parcial
+      var mesActual=now.getMonth(), anioActual=now.getFullYear();
+      var esMesActual=(mIdx===mesActual&&refYear===anioActual);
+      if(esMesActual){
+        // Meta proporcional a días transcurridos del mes actual
+        var diaActual=now.getDate();
+        var diasMes=diasEnMes(anioActual,mesActual);
+        labelSuffix=mesFiltro[0]+' (día '+diaActual+'/'+diasMes+')';
+        metaTotal=dMeta*diaActual; // meta hasta hoy dentro del mes
+        labelMeta='meta al día de hoy';
+      } else {
+        labelSuffix=mesFiltro[0];
+      }
+    } else {
+      labelSuffix=mesFiltro.join(', ');
+    }
+    ventaDia=src.reduce(function(s,r){return s+r[F.VENTA];},0);
+
   } else {
-    // ── Modo 3: sin rango, sin picker → HOY ──
-    var now=new Date();
+    // ── Modo 4: sin filtros → HOY ──
     var ty=now.getFullYear(),tm=now.getMonth(),td=now.getDate();
     labelSuffix='Hoy';
     metaTotal=dMeta;
-    ventaDia=src.reduce(function(s,r){
+    labelMeta='meta diaria';
+    ventaDia=(filteredData&&filteredData.length?filteredData:ALL).reduce(function(s,r){
       var f=r[F.FECHA]; if(!f) return s;
       var pts=f.split('/'); if(pts.length<3) return s;
       var fd=parseInt(pts[0]),fm=parseInt(pts[1])-1,fy=parseInt(pts[2]);
@@ -1271,9 +1310,9 @@ function updateKpiDailyDate(dateStr){
   var edb=document.getElementById('kpi-daily-bar');
   var edp=document.getElementById('kpi-daily-pct');
   var edc=document.getElementById('kpi-daily-meta');
-  if(el){ el.textContent='Meta Diaria — '+labelSuffix; }
+  if(el){ el.textContent='Meta — '+labelSuffix; }
   if(el6){ el6.textContent=fK(ventaDia); }
-  if(es6){ es6.textContent='de '+fK(metaTotal)+(hasRange&&!hasPicker?' meta del período':' meta diaria'); }
+  if(es6){ es6.textContent='de '+fK(metaTotal)+' '+labelMeta; }
   if(edb){ edb.style.width=Math.min(dPct,100)+'%'; edb.style.background=dColor; }
   if(edp){
     var lbl=dPct>=100?'✅ Meta alcanzada':dPct>=70?'En camino ▲':'Por debajo ▼';
