@@ -1300,13 +1300,13 @@ function updateKpiDailyDate(dateStr){
       var mesActual=now.getMonth(), anioActual=now.getFullYear();
       var esMesActual=(mIdx===mesActual&&refYear===anioActual);
       if(esMesActual){
-        // Meta proporcional a días laborales transcurridos hoy
+        // Meta total del mes (días laborales completos del mes)
         var diaActual=now.getDate();
         var dlHoy=diasLabHasta(anioActual,mesActual,diaActual);
         var dlTot=diasLab(anioActual,mesActual);
         labelSuffix=mesFiltro[0]+' (día lab. '+dlHoy+'/'+dlTot+')';
-        metaTotal=dMeta*dlHoy;
-        labelMeta='meta al día de hoy';
+        metaTotal=dMeta*dlTot;  // meta total del mes, no proporcional
+        labelMeta='meta del mes';
       } else {
         var dlTot2=diasLab(refYear,mIdx);
         labelSuffix=mesFiltro[0]+' ('+dlTot2+' días lab.)';
