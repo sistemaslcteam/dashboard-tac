@@ -1258,14 +1258,18 @@ function updateKpiDailyDate(dateStr){
     },0);
 
   } else if(hasRange){
-    // ── Modo 2: rango de fechas activo ──
+    // ── Modo 2: rango de fechas activo — cuenta días laborales (L-V) ──
     function parseLocal(s){var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
     var dIni=parseLocal(iniVal), dFin=parseLocal(finVal);
-    var numDias=Math.round((dFin-dIni)/86400000)+1;
-    metaTotal=dMeta*numDias;
+    // Contar días laborales (lun-vie) en el rango
+    var numDiasLab=0;
+    var cur=new Date(dIni.getTime());
+    while(cur<=dFin){var wd=cur.getDay();if(wd!==0&&wd!==6)numDiasLab++;cur.setDate(cur.getDate()+1);}
+    var numDiasCal=Math.round((dFin-dIni)/86400000)+1;
+    metaTotal=dMeta*numDiasLab;
     labelMeta='meta del período';
     function fmtD(d){return String(d.getDate()).padStart(2,'0')+'/'+ String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
-    labelSuffix=numDias===1?fmtD(dIni):fmtD(dIni)+' → '+fmtD(dFin)+' ('+numDias+' días)';
+    labelSuffix=numDiasLab===1?fmtD(dIni):fmtD(dIni)+' → '+fmtD(dFin)+' ('+numDiasLab+' días lab.)';
     ventaDia=src.reduce(function(s,r){return s+r[F.VENTA];},0);
 
   } else if(mesFiltro.length>0){
